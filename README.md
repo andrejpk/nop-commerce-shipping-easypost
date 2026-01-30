@@ -120,15 +120,6 @@ git push origin v1.33.0
 
 The workflow will automatically create a GitHub release with the packaged plugin.
 
-## Migration from v4.60
-
-This plugin has been migrated from nopCommerce 4.60 to 4.90 with the following major changes:
-
-- **EasyPost SDK**: Upgraded from v4.0.2 to v7.4.0
-- **.NET Version**: Upgraded from .NET 7.0 to .NET 9.0
-- **API Changes**: Updated for nopCommerce 4.90 API (permissions, menu system, etc.)
-- **Breaking Changes**: CarbonNeutral option removed (all shipments are carbon neutral by default in EasyPost v7)
-
 ## Testing
 
 The project includes unit tests with full mocking:
@@ -160,11 +151,6 @@ This plugin is provided as-is for use with nopCommerce. See nopCommerce license 
 - **nopCommerce Documentation**: https://docs.nopcommerce.com/
 - **Issues**: Report issues on the [GitHub Issues page](../../issues)
 
-## Changelog
+## History
 
-### v1.33 (2024)
-- Migrated to nopCommerce 4.90
-- Upgraded to EasyPost SDK v7.4.0
-- Updated to .NET 9.0
-- Added comprehensive test coverage
-- Added CI/CD pipeline for automated builds and releases
+This plugin was originally forked from the nopCommerce 4.6 EasyPost plugin and has been modernized for nopCommerce 4.90 with updated dependencies and improved tooling.
