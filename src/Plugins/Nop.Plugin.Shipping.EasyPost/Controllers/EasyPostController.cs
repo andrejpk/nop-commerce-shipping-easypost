@@ -464,7 +464,7 @@ public class EasyPostController : BasePluginController
         public async Task<IActionResult> BatchList(BatchSearchModel searchModel)
         {
             if (!await _permissionService.AuthorizeAsync(StandardPermission.Orders.ORDERS_VIEW))
-                return await AccessDeniedDataTablesJson();
+                return await AccessDeniedJsonAsync();
 
             var status = searchModel.StatusId > 0 ? (BatchStatus?)searchModel.StatusId : null;
             var batches = (await _easyPostService.GetAllBatchesAsync(status: status)).ToPagedList(searchModel);
@@ -473,7 +473,7 @@ public class EasyPostController : BasePluginController
                 return new BatchModel
                 {
                     Id = batch.Id,
-                    Status = CommonHelper.ConvertEnum(((BatchStatus)batch.StatusId).ToString()),
+                    Status = CommonHelper.SplitCamelCaseWord(((BatchStatus)batch.StatusId).ToString()),
                     UpdatedOn = await _dateTimeHelper.ConvertToUserTimeAsync(batch.UpdatedOnUtc, DateTimeKind.Utc),
                     CreatedOn = await _dateTimeHelper.ConvertToUserTimeAsync(batch.CreatedOnUtc, DateTimeKind.Utc)
                 };
@@ -517,7 +517,7 @@ public class EasyPostController : BasePluginController
                 CreatedOn = await _dateTimeHelper.ConvertToUserTimeAsync(batch.CreatedOnUtc, DateTimeKind.Utc),
                 ManifestGenerated = !string.IsNullOrEmpty(batch.ManifestUrl)
             };
-            model.Status = CommonHelper.ConvertEnum(model.BatchStatus.ToString());
+            model.Status = CommonHelper.SplitCamelCaseWord(model.BatchStatus.ToString());
             model.Purchased = model.BatchStatus == BatchStatus.Purchased ||
                 model.BatchStatus == BatchStatus.LabelGenerating ||
                 model.BatchStatus == BatchStatus.LabelGenerated;
@@ -579,7 +579,7 @@ public class EasyPostController : BasePluginController
         public async Task<IActionResult> BatchShipmentList(BatchShipmentSearchModel searchModel)
         {
             if (!await _permissionService.AuthorizeAsync(StandardPermission.Orders.ORDERS_VIEW))
-                return await AccessDeniedDataTablesJson();
+                return await AccessDeniedJsonAsync();
 
             var batch = await _easyPostService.GetBatchByIdAsync(searchModel.BatchId)
                 ?? throw new ArgumentException("No batch found with the specified id");

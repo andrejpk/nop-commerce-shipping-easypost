@@ -124,7 +124,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Domain.Shipment
                 ["additional_handling"] = options.AdditionalHandling,
                 ["alcohol"] = options.Alcohol,
                 ["by_drone"] = options.ByDrone,
-                ["carbon_neutral"] = options.CarbonNeutral,
+                // CarbonNeutral removed in EasyPost v7 - all shipments are carbon neutral by default
                 ["delivery_confirmation"] = options.DeliveryConfirmation,
                 ["endorsement"] = options.Endorsement,
                 ["handling_instructions"] = options.HandlingInstructions,

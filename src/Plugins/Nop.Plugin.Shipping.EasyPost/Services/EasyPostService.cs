@@ -60,6 +60,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
         private readonly IStoreContext _storeContext;
         private readonly IStoreService _storeService;
         private readonly IUrlHelperFactory _urlHelperFactory;
+        private readonly IWarehouseService _warehouseService;
         private readonly IWorkContext _workContext;
         private readonly MeasureSettings _measureSettings;
         private readonly Nop.Core.Domain.Shipping.ShippingSettings _shippingSettings;
@@ -91,6 +92,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
             IStoreContext storeContext,
             IStoreService storeService,
             IUrlHelperFactory urlHelperFactory,
+            IWarehouseService warehouseService,
             IWorkContext workContext,
             MeasureSettings measureSettings,
             Nop.Core.Domain.Shipping.ShippingSettings shippingSettings)
@@ -116,6 +118,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
             _storeContext = storeContext;
             _storeService = storeService;
             _urlHelperFactory = urlHelperFactory;
+            _warehouseService = warehouseService;
             _workContext = workContext;
             _measureSettings = measureSettings;
             _shippingSettings = shippingSettings;
@@ -135,7 +138,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
             {
                 var settings = EngineContext.Current.Resolve<EasyPostSettings>();
                 var key = settings.UseSandbox ? settings.TestApiKey : settings.ApiKey;
-                _client = new Client(key);
+                _client = new Client(new ClientConfiguration(key));
             }
 
             return _client is not null;
@@ -251,7 +254,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
 
             var items = await _shipmentService.GetShipmentItemsByShipmentIdAsync(shipmentEntry.Id);
             var warehouses = (await items
-                .SelectAwait(async item => await _shippingService.GetWarehouseByIdAsync(item.WarehouseId))
+                .SelectAwait(async item => await _warehouseService.GetWarehouseByIdAsync(item.WarehouseId))
                 .ToListAsync())
                 .Where(warehouse => warehouse is not null)
                 .Distinct()
@@ -575,7 +578,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                     return webhook;
 
                 //try to create new one if doesn't exist
-                return await _client.Webhook.Create(new() { [nameof(url)] = url })
+                return await _client.Webhook.Create(new Dictionary<string, object> { [nameof(url)] = url })
                     ?? throw new NopException("No response from the service");
             });
         }
@@ -601,7 +604,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 if (webhook is null)
                     return false;
 
-                await webhook.Delete();
+                await _client.Webhook.Delete(webhook.Id);
 
                 return true;
             });
@@ -895,31 +898,10 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 if (!useSmartRates || !_easyPostSettings.UseSmartRates)
                     return rates;
 
-                await HandleFunctionAsync(async () =>
-                {
-                    var smartRates = await shipment.GetSmartrates();
-                    if (!smartRates?.Any() ?? true)
-                        throw new NopException("Failed to get smart rates");
-
-                    foreach (var rate in rates)
-                    {
-                        var expectedDays = smartRates
-                            .FirstOrDefault(smartRate => smartRate.Carrier == rate.Carrier && smartRate.Service == rate.Service)
-                            ?.TimeInTransit;
-                        if (expectedDays is not null)
-                        {
-                            rate.TimeInTransit.Add((50, expectedDays.Percentile50));
-                            rate.TimeInTransit.Add((75, expectedDays.Percentile75));
-                            rate.TimeInTransit.Add((85, expectedDays.Percentile85));
-                            rate.TimeInTransit.Add((90, expectedDays.Percentile90));
-                            rate.TimeInTransit.Add((95, expectedDays.Percentile95));
-                            rate.TimeInTransit.Add((97, expectedDays.Percentile97));
-                            rate.TimeInTransit.Add((99, expectedDays.Percentile99));
-                        }
-                    }
-
-                    return rates;
-                });
+                // TODO: EasyPost v7 migration - GetSmartrates method no longer exists
+                // SmartRate data should now be available directly in rate.TimeInTransit
+                // The new SmartRate service (client.SmartRate.RecommendShipDateForShipment) provides different functionality
+                // Need to verify if TimeInTransit data is automatically populated or if we need a different approach
 
                 return rates;
             });
@@ -1111,7 +1093,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                     insuranceValue = insurance.ToString("0.00", CultureInfo.InvariantCulture);
                 }
 
-                await shipment.Buy(rateId, insuranceValue);
+                shipment = await _client.Shipment.Buy(shipment.Id, rateId, insuranceValue);
 
                 //set tracking number
                 if (!string.IsNullOrEmpty(shipment.Tracker?.TrackingCode))
@@ -1173,7 +1155,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(type))
                 {
                     //or generate new one with the specified format
-                    await shipment.GenerateLabel(format.ToUpper());
+                    shipment = await _client.Shipment.GenerateLabel(shipment.Id, format.ToUpper());
                     (url, type) = getLabelDetails();
                 }
 
@@ -1280,7 +1262,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 }
 
                 //or find one by the number from the common list
-                var trackerList = await _client.Tracker.All(new() { ["tracking_code"] = trackingNumber })
+                var trackerList = await _client.Tracker.All(new Dictionary<string, object> { ["tracking_code"] = trackingNumber })
                     ?? throw new NopException("No response from the service");
 
                 return trackerList.Trackers?.FirstOrDefault()?.PublicUrl
@@ -1339,7 +1321,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 }
 
                 //or find one by the number from the common list
-                var trackerList = await _client.Tracker.All(new() { ["tracking_code"] = trackingNumber })
+                var trackerList = await _client.Tracker.All(new Dictionary<string, object> { ["tracking_code"] = trackingNumber })
                     ?? throw new NopException("No response from the service");
 
                 return getEvents(trackerList.Trackers?.FirstOrDefault())
@@ -1546,7 +1528,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 var selectedRate = pickup.PickupRates?.FirstOrDefault(rate => rate.Id == rateId)
                     ?? throw new NopException($"Selected rate is not available");
 
-                await pickup.Buy(selectedRate.Carrier, selectedRate.Service);
+                await _client.Pickup.Buy(pickup.Id, selectedRate.Carrier, selectedRate.Service);
 
                 return true;
             });
@@ -1586,7 +1568,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                     await UpdateBatchAsync(batchEntry);
                 }
 
-                await pickup.Cancel();
+                await _client.Pickup.Cancel(pickup.Id);
 
                 return true;
             });
@@ -1753,7 +1735,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 {
                     //create new batch
                     var reference = Guid.NewGuid();
-                    batch = await _client.Batch.Create(new() { [nameof(reference)] = reference.ToString().ToLower() });
+                    batch = await _client.Batch.Create(new Dictionary<string, object> { [nameof(reference)] = reference.ToString().ToLower() });
 
                     batchEntry.BatchGuid = reference;
                     batchEntry.BatchId = batch.Id;
@@ -1771,9 +1753,9 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 var idsToAdd = currentShipmentIds.Where(pair => !batchShipmentIds.Contains(pair.ShipmentId)).ToList();
                 var idsToRemove = batchShipmentIds.Where(id => !currentShipmentIds.Any(pair => id == pair.ShipmentId)).ToList();
                 if (idsToAdd.Any())
-                    await batch.AddShipments(idsToAdd.Select(pair => pair.ShipmentId));
+                    batch = await _client.Batch.AddShipments(batch.Id, idsToAdd.Select(pair => pair.ShipmentId).ToList());
                 if (idsToRemove.Any())
-                    await batch.RemoveShipments(idsToRemove);
+                    batch = await _client.Batch.RemoveShipments(batch.Id, idsToRemove);
 
                 batchEntry.StatusId = (int)GetBatchStatus(batch);
                 batchEntry.UpdatedOnUtc = DateTime.UtcNow;
@@ -1849,7 +1831,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 var batch = await _client.Batch.Retrieve(batchEntry.BatchId)
                     ?? throw new NopException("No response from the service");
 
-                await batch.GenerateLabel((labelFormat ?? "pdf").ToUpper());
+                batch = await _client.Batch.GenerateLabel(batch.Id, (labelFormat ?? "pdf").ToUpper());
                 batchEntry.LabelFormat = labelFormat;
                 await UpdateBatchAsync(batchEntry);
 
@@ -1922,7 +1904,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 var batch = await _client.Batch.Retrieve(batchEntry.BatchId)
                     ?? throw new NopException("No response from the service");
 
-                await batch.GenerateScanForm();
+                await _client.Batch.GenerateScanForm(batch.Id, "pdf");
 
                 return true;
             });

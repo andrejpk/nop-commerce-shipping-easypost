@@ -63,7 +63,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Components
             if (!await _shippingPluginManager.IsPluginActiveAsync(EasyPostDefaults.SystemName))
                 return Content(string.Empty);
 
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManageShippingSettings))
+            if (!await _permissionService.AuthorizeAsync(StandardPermission.Configuration.MANAGE_SHIPPING_SETTINGS))
                 return Content(string.Empty);
 
             if (!widgetZone.Equals(AdminWidgetZones.ProductDetailsBlock))

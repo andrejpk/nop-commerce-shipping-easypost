@@ -82,7 +82,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Components
             if (!await _shippingPluginManager.IsPluginActiveAsync(EasyPostDefaults.SystemName))
                 return Content(string.Empty);
 
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManageOrders))
+            if (!await _permissionService.AuthorizeAsync(StandardPermission.Orders.ORDERS_VIEW))
                 return Content(string.Empty);
 
             if (!widgetZone.Equals(AdminWidgetZones.OrderShipmentDetailsButtons))
@@ -185,7 +185,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Components
                 model.AdditionalHandling = shipment.Options.AdditionalHandling ?? false;
                 model.Alcohol = shipment.Options.Alcohol ?? false;
                 model.ByDrone = shipment.Options.ByDrone ?? false;
-                model.CarbonNeutral = shipment.Options.CarbonNeutral ?? false;
+                model.CarbonNeutral = false; // CarbonNeutral removed in EasyPost v7 - all shipments are carbon neutral by default
                 model.DeliveryConfirmation = (int)getEnumValue<DeliveryConfirmation>(shipment.Options.DeliveryConfirmation);
                 model.Endorsement = (int)getEnumValue<Endorsement>(shipment.Options.Endorsement);
                 model.HandlingInstructions = shipment.Options.HandlingInstructions;
@@ -213,7 +213,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Components
                 model.NonDeliveryOption = (int)getEnumValue<NonDeliveryOption>(shipment.CustomsInfo.NonDeliveryOption);
                 model.ContentsExplanation = shipment.CustomsInfo.ContentsExplanation;
                 model.RestrictionComments = shipment.CustomsInfo.RestrictionComments;
-                model.CustomsCertify = bool.TryParse(shipment.CustomsInfo.CustomsCertify, out var customsCertify) && customsCertify;
+                model.CustomsCertify = shipment.CustomsInfo.CustomsCertify ?? false;
                 model.CustomsSigner = shipment.CustomsInfo.CustomsSigner;
                 model.EelPfc = shipment.CustomsInfo.EelPfc;
             }
