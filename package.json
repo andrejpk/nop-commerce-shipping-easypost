@@ -1,0 +1,15 @@
+{
+  "name": "nop-plugin-shipping-easypost",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EasyPost shipping plugin for nopCommerce",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andrejpk/nop-commerce-shipping-easypost.git"
+  },
+  "devDependencies": {
+    "semantic-release": "^24.0.0",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/changelog": "^6.0.3"
+  }
+}
