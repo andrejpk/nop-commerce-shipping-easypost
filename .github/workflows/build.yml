@@ -40,37 +40,18 @@ jobs:
     - name: Run tests
       run: dotnet test plugin/src/Tests/Nop.Plugin.Shipping.EasyPost.Tests/Nop.Plugin.Shipping.EasyPost.Tests.csproj --configuration Release --verbosity normal
 
-    - name: Prepare plugin package
-      run: |
-        mkdir -p package/Shipping.EasyPost
+    - name: Install dotnet-script
+      run: dotnet tool install -g dotnet-script
 
-        # Copy plugin DLL and dependencies from nopCommerce output
-        cp nopCommerce/src/Presentation/Nop.Web/Plugins/Shipping.EasyPost/Nop.Plugin.Shipping.EasyPost.dll package/Shipping.EasyPost/
-        cp nopCommerce/src/Presentation/Nop.Web/Plugins/Shipping.EasyPost/Nop.Plugin.Shipping.EasyPost.pdb package/Shipping.EasyPost/ || true
-
-        # Copy EasyPost dependency
-        cp nopCommerce/src/Presentation/Nop.Web/Plugins/Shipping.EasyPost/EasyPost*.dll package/Shipping.EasyPost/ || true
-
-        # Copy views
-        cp -r plugin/src/Plugins/Nop.Plugin.Shipping.EasyPost/Views package/Shipping.EasyPost/
-
-        # Copy plugin.json
-        cp plugin/src/Plugins/Nop.Plugin.Shipping.EasyPost/plugin.json package/Shipping.EasyPost/
-
-        # Copy logo if it exists
-        if [ -f plugin/src/Plugins/Nop.Plugin.Shipping.EasyPost/logo.png ]; then
-          cp plugin/src/Plugins/Nop.Plugin.Shipping.EasyPost/logo.png package/Shipping.EasyPost/
-        fi
-
-    - name: Create ZIP package
-      run: |
-        cd package
-        zip -r ../Nop.Plugin.Shipping.EasyPost.zip Shipping.EasyPost/
-        cd ..
+    - name: Package plugin
+      run: dotnet script build.cs
+      working-directory: plugin
+      env:
+        NopCommerceRoot: ${{ github.workspace }}/nopCommerce/src
 
     - name: Upload plugin package
       uses: actions/upload-artifact@v4
       with:
         name: Nop.Plugin.Shipping.EasyPost
-        path: Nop.Plugin.Shipping.EasyPost.zip
+        path: plugin/Nop.Plugin.Shipping.EasyPost.zip
         retention-days: 30
