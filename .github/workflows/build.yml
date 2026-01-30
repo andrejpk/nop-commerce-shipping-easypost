@@ -74,33 +74,3 @@ jobs:
         name: Nop.Plugin.Shipping.EasyPost
         path: Nop.Plugin.Shipping.EasyPost.zip
         retention-days: 30
-
-    - name: Get version from plugin.json
-      id: get_version
-      run: |
-        VERSION=$(grep -o '"Version"[[:space:]]*:[[:space:]]*"[^"]*"' plugin/src/Plugins/Nop.Plugin.Shipping.EasyPost/plugin.json | sed 's/.*"\([^"]*\)".*/\1/')
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-    - name: Create Release on tag
-      if: startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: Nop.Plugin.Shipping.EasyPost.zip
-        body: |
-          ## EasyPost Shipping Plugin v${{ steps.get_version.outputs.version }}
-
-          Compatible with nopCommerce 4.90
-
-          ### Installation
-          1. Download the ZIP file
-          2. Go to Admin → Configuration → Local plugins
-          3. Click "Upload plugin or theme"
-          4. Select the ZIP file
-          5. Click "Upload plugin or theme" button
-          6. Restart the application
-          7. Click "Install" next to the plugin
-
-          ### Changes
-          See commit history for detailed changes.
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
