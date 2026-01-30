@@ -1,0 +1,76 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultItems>false</EnableDefaultItems>
+
+    <!-- Package configuration -->
+    <PluginName>Shipping.EasyPost</PluginName>
+    <PluginProjectPath>../src/Plugins/Nop.Plugin.Shipping.EasyPost</PluginProjectPath>
+    <NopCommerceRoot Condition="'$(NopCommerceRoot)' == ''">../../nopCommerce/src</NopCommerceRoot>
+    <PluginOutputPath>$(NopCommerceRoot)/Presentation/Nop.Web/Plugins/$(PluginName)</PluginOutputPath>
+    <PackageOutputPath>../package/$(PluginName)</PackageOutputPath>
+    <ZipOutputPath>..</ZipOutputPath>
+    <ZipFileName>Nop.Plugin.Shipping.EasyPost.zip</ZipFileName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference the plugin project to ensure it's built first -->
+    <ProjectReference Include="$(PluginProjectPath)/Nop.Plugin.Shipping.EasyPost.csproj" />
+  </ItemGroup>
+
+  <Target Name="Package" AfterTargets="Build">
+    <Message Text="Creating plugin package..." Importance="high" />
+
+    <!-- Clean previous package -->
+    <RemoveDir Directories="$(PackageOutputPath)" />
+    <MakeDir Directories="$(PackageOutputPath)" />
+
+    <!-- Copy plugin DLL and PDB -->
+    <ItemGroup>
+      <PluginFiles Include="$(PluginOutputPath)/Nop.Plugin.Shipping.EasyPost.dll" />
+      <PluginFiles Include="$(PluginOutputPath)/Nop.Plugin.Shipping.EasyPost.pdb" />
+      <PluginFiles Include="$(PluginOutputPath)/EasyPost*.dll" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PackageOutputPath)" />
+
+    <!-- Copy views -->
+    <ItemGroup>
+      <ViewFiles Include="$(PluginProjectPath)/Views/**/*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ViewFiles)"
+          DestinationFolder="$(PackageOutputPath)/Views/%(RecursiveDir)" />
+
+    <!-- Copy plugin.json and logo -->
+    <ItemGroup>
+      <MetadataFiles Include="$(PluginProjectPath)/plugin.json" />
+      <MetadataFiles Include="$(PluginProjectPath)/logo.png" Condition="Exists('$(PluginProjectPath)/logo.png')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(MetadataFiles)" DestinationFolder="$(PackageOutputPath)" />
+
+    <Message Text="Plugin files copied to $(PackageOutputPath)" Importance="high" />
+
+    <!-- Create ZIP -->
+    <Delete Files="$(ZipOutputPath)/$(ZipFileName)" Condition="Exists('$(ZipOutputPath)/$(ZipFileName)')" />
+    <ZipDirectory SourceDirectory="$(MSBuildProjectDirectory)/../package"
+                  DestinationFile="$(ZipOutputPath)/$(ZipFileName)"
+                  Overwrite="true" />
+
+    <Message Text="✅ Package created: $(ZipOutputPath)/$(ZipFileName)" Importance="high" />
+
+    <!-- Display package info -->
+    <ItemGroup>
+      <ZipInfo Include="$(ZipOutputPath)/$(ZipFileName)" />
+    </ItemGroup>
+    <Message Text="📦 Size: %(ZipInfo.ModifiedTime)" Importance="high" />
+  </Target>
+
+  <Target Name="Clean" AfterTargets="Clean">
+    <RemoveDir Directories="$(PackageOutputPath)" />
+    <Delete Files="$(ZipOutputPath)/$(ZipFileName)" />
+  </Target>
+
+</Project>
