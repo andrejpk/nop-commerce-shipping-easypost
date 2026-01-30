@@ -31,3 +31,8 @@ bld/
 # OS
 .DS_Store
 Thumbs.db
+
+# Build artifacts
+package/
+*.zip
+publish/
