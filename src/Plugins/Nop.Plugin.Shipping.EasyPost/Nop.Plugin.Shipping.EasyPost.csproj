@@ -16,6 +16,7 @@
     to ensure that the dlls copied from the NuGet cache to the output of your project-->
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RazorCompileOnBuild>true</RazorCompileOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
