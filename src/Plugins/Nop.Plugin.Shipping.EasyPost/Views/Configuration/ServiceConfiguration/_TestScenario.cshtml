@@ -1,0 +1,43 @@
+@model ConfigurationModel
+
+<!-- Test Scenario Section -->
+<div class="card card-default mb-3">
+    <div class="card-header">
+        Test Scenario
+    </div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group col-md-3">
+                <label>City</label>
+                <input type="text" id="test-city" class="form-control" placeholder="New York" />
+            </div>
+            <div class="form-group col-md-3">
+                <label>State</label>
+                <input type="text" id="test-state" class="form-control" placeholder="NY" />
+            </div>
+            <div class="form-group col-md-2">
+                <label>ZIP Code</label>
+                <input type="text" id="test-zip" class="form-control" placeholder="10001" />
+            </div>
+            <div class="form-group col-md-2">
+                <label>Country</label>
+                <select id="test-country" class="form-control">
+                    @foreach (var country in Model.AvailableCountries)
+                    {
+                        <option value="@country.Value">@country.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group col-md-1">
+                <label>Weight (oz)</label>
+                <input type="number" id="test-weight" class="form-control" placeholder="16" value="16" min="1" step="1" />
+            </div>
+            <div class="form-group col-md-2 align-self-end">
+                <button type="button" id="btn-discover-services" class="btn btn-info btn-block">
+                    <i class="fas fa-sync"></i> Discover Services
+                </button>
+            </div>
+        </div>
+        <div id="discovery-status" class="alert" style="display:none;"></div>
+    </div>
+</div>

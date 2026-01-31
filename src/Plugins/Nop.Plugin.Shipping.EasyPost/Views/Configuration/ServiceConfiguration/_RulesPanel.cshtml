@@ -1,0 +1,153 @@
+@model ConfigurationModel
+
+<!-- Rule Builder Section -->
+<div class="card card-default" id="rules-panel">
+    <div class="card-header">
+        <i class="fas fa-filter"></i> Display Rules
+    </div>
+    <div class="card-body">
+        <!-- Add Rule Form -->
+        <div class="card bg-light mb-3">
+            <div class="card-body">
+                <h6 class="card-title">Add New Rule</h6>
+
+                <!-- Rule Type Selection -->
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label>Rule Type:</label>
+                        <div class="btn-group btn-group-toggle d-block" data-toggle="buttons">
+                            <label class="btn btn-outline-primary active">
+                                <input type="radio" name="rule-type" id="rule-type-hide" value="hide" checked> Hide Service
+                            </label>
+                            <label class="btn btn-outline-primary">
+                                <input type="radio" name="rule-type" id="rule-type-priority" value="priority"> Priority List
+                            </label>
+                            <label class="btn btn-outline-primary">
+                                <input type="radio" name="rule-type" id="rule-type-price-priority" value="price-priority"> Cheapest From Group
+                            </label>
+                            <label class="btn btn-outline-primary">
+                                <input type="radio" name="rule-type" id="rule-type-remove-unmatched" value="remove-unmatched"> Remove Unmatched
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conditional Hide Rule Fields -->
+                <div id="hide-rule-fields">
+                    <div class="row">
+                        <div class="col-md-5">
+                            <label>Hide service:</label>
+                            <select id="rule-hide-service" class="form-control">
+                                <option value="">Select service...</option>
+                            </select>
+                            <small class="form-text text-muted">Or enter pattern like "USPS:*" or "*:Express"</small>
+                            <input type="text" id="rule-hide-pattern" class="form-control form-control-sm mt-1" placeholder="Custom pattern (optional)">
+                        </div>
+                        <div class="col-md-5">
+                            <label>If this service exists <small class="text-muted">(leave blank for always)</small>:</label>
+                            <select id="rule-if-service" class="form-control">
+                                <option value="">Select service or leave blank...</option>
+                            </select>
+                            <small class="form-text text-muted">Or enter pattern</small>
+                            <input type="text" id="rule-if-pattern" class="form-control form-control-sm mt-1" placeholder="Custom pattern (optional)">
+                        </div>
+                        <div class="col-md-2">
+                            <label>&nbsp;</label>
+                            <button type="button" id="btn-add-rule" class="btn btn-primary btn-block">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Priority List Rule Fields -->
+                <div id="priority-rule-fields" style="display:none;">
+                    <div class="row">
+                        <div class="col-md-10">
+                            <label>Priority Services (first available will be shown):</label>
+                            <div id="priority-services-builder" class="border rounded p-2 bg-white">
+                                <div id="priority-services-list"></div>
+                                <div class="input-group mt-2">
+                                    <select id="priority-service-select" class="form-control">
+                                        <option value="">Select service to add...</option>
+                                    </select>
+                                    <div class="input-group-append">
+                                        <button type="button" id="btn-add-priority-service" class="btn btn-secondary">
+                                            <i class="fas fa-plus"></i> Add
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label>&nbsp;</label>
+                            <button type="button" id="btn-add-priority-rule" class="btn btn-primary btn-block">
+                                <i class="fas fa-plus"></i> Add Rule
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Price-Priority List Rule Fields -->
+                <div id="price-priority-rule-fields" style="display:none;">
+                    <div class="row">
+                        <div class="col-md-10">
+                            <label>Service Group (cheapest will be shown):</label>
+                            <div id="price-priority-services-builder" class="border rounded p-2 bg-white">
+                                <div id="price-priority-services-list"></div>
+                                <div class="input-group mt-2">
+                                    <select id="price-priority-service-select" class="form-control">
+                                        <option value="">Select service to add...</option>
+                                    </select>
+                                    <div class="input-group-append">
+                                        <button type="button" id="btn-add-price-priority-service" class="btn btn-secondary">
+                                            <i class="fas fa-plus"></i> Add
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label>&nbsp;</label>
+                            <button type="button" id="btn-add-price-priority-rule" class="btn btn-primary btn-block">
+                                <i class="fas fa-plus"></i> Add Rule
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Remove Unmatched Rule Fields -->
+                <div id="remove-unmatched-rule-fields" style="display:none;">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Remove Unmatched:</strong> This rule will hide any services that haven't been matched by previous rules.
+                        Use this after Priority Lists or Hide rules to remove everything else.
+                    </div>
+                    <div class="row">
+                        <div class="col-md-10">
+                            <p class="text-muted">No additional configuration needed. This rule will be applied based on its position in the rule list.</p>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" id="btn-add-remove-unmatched-rule" class="btn btn-primary btn-block">
+                                <i class="fas fa-plus"></i> Add Rule
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-2">
+                    <div class="col-md-12">
+                        <label>Description (optional):</label>
+                        <input type="text" id="rule-description" class="form-control" placeholder="e.g., Show cheapest option only">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Existing Rules List -->
+        <div id="rules-list"></div>
+        <div id="no-rules-message" class="text-muted text-center py-3">
+            No rules defined yet.
+        </div>
+    </div>
+</div>
