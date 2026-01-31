@@ -16,6 +16,7 @@
     to ensure that the dlls copied from the NuGet cache to the output of your project-->
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RazorCompileOnBuild>true</RazorCompileOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,6 +26,13 @@
     <None Remove="Views\Batch\List.cshtml" />
     <None Remove="Views\Batch\Shipments.cshtml" />
     <None Remove="Views\Configuration\Configure.cshtml" />
+    <None Remove="Views\Configuration\_Credentials.cshtml" />
+    <None Remove="Views\Configuration\_Carriers.cshtml" />
+    <None Remove="Views\Configuration\_AddressVerification.cshtml" />
+    <None Remove="Views\Configuration\_ServiceConfiguration.cshtml" />
+    <None Remove="Views\Configuration\ServiceConfiguration\_TestScenario.cshtml" />
+    <None Remove="Views\Configuration\ServiceConfiguration\_ServicesPanel.cshtml" />
+    <None Remove="Views\Configuration\ServiceConfiguration\_RulesPanel.cshtml" />
     <None Remove="Views\Pickup\_PickupButtons.cshtml" />
     <None Remove="Views\Pickup\_PickupDetails.cshtml" />
     <None Remove="Views\Product\_CreateOrUpdate.EasyPost.cshtml" />
@@ -32,6 +40,10 @@
     <None Remove="Views\Shipment\_ShipmentDetails.EasyPost.cshtml" />
     <None Remove="Views\Shipment\ShipmentDetails.cshtml" />
     <None Remove="Views\_ViewImports.cshtml" />
+    <None Remove="wwwroot\js\utils.js" />
+    <None Remove="wwwroot\js\pattern-matcher.js" />
+    <None Remove="wwwroot\js\rule-manager.js" />
+    <None Remove="wwwroot\js\service-discovery.js" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,6 +65,27 @@
     <Content Include="Views\Configuration\Configure.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Views\Configuration\_Credentials.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Views\Configuration\_Carriers.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Views\Configuration\_AddressVerification.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Views\Configuration\_ServiceConfiguration.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Views\Configuration\ServiceConfiguration\_TestScenario.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Views\Configuration\ServiceConfiguration\_ServicesPanel.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Views\Configuration\ServiceConfiguration\_RulesPanel.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Views\Pickup\_PickupButtons.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -72,6 +105,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Views\_ViewImports.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="wwwroot\js\utils.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="wwwroot\js\pattern-matcher.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="wwwroot\js\rule-manager.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="wwwroot\js\service-discovery.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

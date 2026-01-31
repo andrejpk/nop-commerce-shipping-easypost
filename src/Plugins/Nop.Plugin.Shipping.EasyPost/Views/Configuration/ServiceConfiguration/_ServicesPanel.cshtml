@@ -1,0 +1,38 @@
+@model ConfigurationModel
+
+<!-- Placeholder before discovery -->
+<div id="services-placeholder" class="card card-default mb-3">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-info-circle fa-3x text-info mb-3"></i>
+        <h5>Discover Available Shipping Services</h5>
+        <p class="text-muted">
+            Enter a test destination address above and click <strong>"Discover Services"</strong> to see
+            which carriers and shipping options are available. You can then configure visibility rules
+            and preview how they affect the customer-facing options.
+        </p>
+    </div>
+</div>
+
+<!-- Split Panel View -->
+<div class="row mb-3" id="services-panel" style="display:none;">
+    <div class="col-md-6">
+        <div class="card card-default">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-server"></i> Raw EasyPost Rates
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="raw-services-list"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-default">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-eye"></i> Customer-Visible Rates
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="filtered-services-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
