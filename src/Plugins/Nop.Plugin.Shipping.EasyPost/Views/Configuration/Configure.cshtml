@@ -7,18 +7,18 @@
 <form asp-controller="EasyPost" asp-action="Configure" method="post">
     <div class="cards-group">
 
-        <partial name="Configuration/_Credentials" model="Model" />
+        <partial name="~/Plugins/Shipping.EasyPost/Views/Configuration/_Credentials.cshtml" model="Model" />
 
         @if (!string.IsNullOrEmpty(Model.ApiKey))
         {
-            <partial name="Configuration/_Carriers" model="Model" />
+            <partial name="~/Plugins/Shipping.EasyPost/Views/Configuration/_Carriers.cshtml" model="Model" />
         }
 
-        <partial name="Configuration/_AddressVerification" model="Model" />
+        <partial name="~/Plugins/Shipping.EasyPost/Views/Configuration/_AddressVerification.cshtml" model="Model" />
 
         @if (!string.IsNullOrEmpty(Model.ApiKey) || !string.IsNullOrEmpty(Model.TestApiKey))
         {
-            <partial name="Configuration/_ServiceConfiguration" model="Model" />
+            <partial name="~/Plugins/Shipping.EasyPost/Views/Configuration/_ServiceConfiguration.cshtml" model="Model" />
         }
 
         <div class="form-group row">
