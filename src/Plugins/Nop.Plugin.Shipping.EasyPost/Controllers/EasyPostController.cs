@@ -176,7 +176,7 @@ public class EasyPostController : BasePluginController
         }
 
         [HttpPost]
-        public async Task<IActionResult> Configure(ConfigurationModel model)
+        public async Task<IActionResult> Configure(ConfigurationModel model, string discoveredServicesJson, string serviceRulesJson)
         {
             if (!await _permissionService.AuthorizeAsync(StandardPermission.Configuration.MANAGE_SHIPPING_SETTINGS))
                 return AccessDeniedView();
@@ -191,6 +191,28 @@ public class EasyPostController : BasePluginController
             _easyPostSettings.CarrierAccounts = model.CarrierAccounts?.ToList();
             _easyPostSettings.AddressVerification = model.AddressVerification;
             _easyPostSettings.StrictAddressVerification = model.StrictAddressVerification;
+
+            // Save service configuration if provided
+            if (!string.IsNullOrEmpty(discoveredServicesJson))
+            {
+                try
+                {
+                    _easyPostSettings.DiscoveredServices = Newtonsoft.Json.JsonConvert
+                        .DeserializeObject<List<Domain.Configuration.CarrierServiceConfig>>(discoveredServicesJson) ?? new();
+                }
+                catch { /* Invalid JSON, skip */ }
+            }
+
+            if (!string.IsNullOrEmpty(serviceRulesJson))
+            {
+                try
+                {
+                    _easyPostSettings.ServiceDisplayRules = Newtonsoft.Json.JsonConvert
+                        .DeserializeObject<List<Domain.Configuration.ServiceDisplayRule>>(serviceRulesJson) ?? new();
+                }
+                catch { /* Invalid JSON, skip */ }
+            }
+
             await _settingService.SaveSettingAsync(_easyPostSettings);
 
             //reset client configuration

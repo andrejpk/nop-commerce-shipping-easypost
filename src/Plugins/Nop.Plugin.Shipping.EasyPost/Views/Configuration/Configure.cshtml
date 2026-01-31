@@ -168,6 +168,103 @@
             </div>
         </div>
 
+        @if (!string.IsNullOrEmpty(Model.ApiKey))
+        {
+            <div class="card card-default no-margin" id="service-configuration">
+                <div class="card-header">
+                    @T("Plugins.Shipping.EasyPost.Configuration.ServiceConfiguration")
+                </div>
+                <div class="card-body">
+                    <p>
+                        Configure which shipping services to display to customers and create rules to hide certain services conditionally.
+                        Use the test scenario below to discover available services and preview how rules affect the displayed options.
+                    </p>
+
+                    <!-- Test Scenario Section -->
+                    <div class="card card-default mb-3">
+                        <div class="card-header">
+                            Test Scenario
+                        </div>
+                        <div class="card-body">
+                            <div class="form-row">
+                                <div class="form-group col-md-3">
+                                    <label>City</label>
+                                    <input type="text" id="test-city" class="form-control" placeholder="New York" />
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label>State</label>
+                                    <input type="text" id="test-state" class="form-control" placeholder="NY" />
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>ZIP Code</label>
+                                    <input type="text" id="test-zip" class="form-control" placeholder="10001" />
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>Country</label>
+                                    <select id="test-country" class="form-control">
+                                        @foreach (var country in Model.AvailableCountries)
+                                        {
+                                            <option value="@country.Value">@country.Text</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-2 align-self-end">
+                                    <button type="button" id="btn-discover-services" class="btn btn-info btn-block">
+                                        <i class="fas fa-sync"></i> Discover Services
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="discovery-status" class="alert" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Split Panel View -->
+                    <div class="row mb-3" id="services-panel" style="display:none;">
+                        <div class="col-md-6">
+                            <div class="card card-default">
+                                <div class="card-header bg-info text-white">
+                                    <i class="fas fa-server"></i> Raw EasyPost Rates
+                                </div>
+                                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                                    <div id="raw-services-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card card-default">
+                                <div class="card-header bg-success text-white">
+                                    <i class="fas fa-eye"></i> Customer-Visible Rates
+                                </div>
+                                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                                    <div id="filtered-services-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rule Builder Section -->
+                    <div class="card card-default" id="rules-panel" style="display:none;">
+                        <div class="card-header">
+                            <i class="fas fa-filter"></i> Display Rules
+                            <button type="button" id="btn-add-rule" class="btn btn-sm btn-primary float-right">
+                                <i class="fas fa-plus"></i> Add Rule
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="rules-list"></div>
+                            <div id="no-rules-message" class="text-muted text-center py-3">
+                                No rules defined. Click "Add Rule" to create conditional display rules.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden fields to store configuration -->
+                    <input type="hidden" id="discovered-services-json" name="discoveredServicesJson" />
+                    <input type="hidden" id="service-rules-json" name="serviceRulesJson" />
+                </div>
+            </div>
+        }
+
         <div class="form-group row">
             <div class="col-md-9 offset-md-3">
                 <button type="submit" name="save" class="btn btn-primary">@T("Admin.Common.Save")</button>
@@ -176,3 +273,239 @@
 
     </div>
 </form>
+
+<script>
+(function() {
+    // State management
+    let rawServices = [];
+    let discoveredServices = @Html.Raw(Json.Serialize(Model.DiscoveredServices ?? new List<Domain.Configuration.CarrierServiceConfig>()));
+    let serviceRules = @Html.Raw(Json.Serialize(Model.ServiceDisplayRules ?? new List<Domain.Configuration.ServiceDisplayRule>()));
+    let nextRulePriority = serviceRules.length;
+
+    // Load test scenario from sessionStorage
+    function loadTestScenario() {
+        const scenario = JSON.parse(sessionStorage.getItem('easypost_test_scenario') || '{}');
+        if (scenario.city) $('#test-city').val(scenario.city);
+        if (scenario.state) $('#test-state').val(scenario.state);
+        if (scenario.zip) $('#test-zip').val(scenario.zip);
+        if (scenario.country) $('#test-country').val(scenario.country);
+    }
+
+    // Save test scenario to sessionStorage
+    function saveTestScenario() {
+        const scenario = {
+            city: $('#test-city').val(),
+            state: $('#test-state').val(),
+            zip: $('#test-zip').val(),
+            country: $('#test-country').val()
+        };
+        sessionStorage.setItem('easypost_test_scenario', JSON.stringify(scenario));
+    }
+
+    // Discover services from EasyPost
+    $('#btn-discover-services').click(function() {
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Discovering...');
+
+        saveTestScenario();
+
+        $.ajax({
+            url: '@Url.Action("DiscoverServices", "EasyPost")',
+            type: 'POST',
+            data: {
+                city: $('#test-city').val(),
+                stateProvinceId: $('#test-state').val(),
+                zipCode: $('#test-zip').val(),
+                countryId: $('#test-country').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    rawServices = response.services;
+                    discoveredServices = response.services.map(s => ({
+                        carrier: s.carrier,
+                        service: s.service,
+                        displayName: s.displayName,
+                        visible: true,
+                        displayOrder: 0
+                    }));
+
+                    $('#discovery-status')
+                        .removeClass('alert-danger')
+                        .addClass('alert-success')
+                        .html('<i class="fas fa-check-circle"></i> Found ' + rawServices.length + ' services')
+                        .show();
+
+                    $('#services-panel, #rules-panel').show();
+                    renderServices();
+                } else {
+                    $('#discovery-status')
+                        .removeClass('alert-success')
+                        .addClass('alert-danger')
+                        .html('<i class="fas fa-exclamation-circle"></i> ' + response.message)
+                        .show();
+                }
+            },
+            error: function() {
+                $('#discovery-status')
+                    .removeClass('alert-success')
+                    .addClass('alert-danger')
+                    .html('<i class="fas fa-exclamation-circle"></i> Failed to discover services')
+                    .show();
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-sync"></i> Discover Services');
+            }
+        });
+    });
+
+    // Render services in both panels
+    function renderServices() {
+        // Raw services
+        let rawHtml = rawServices.map(s =>
+            `<div class="p-2 border-bottom">
+                <strong>${s.carrier}</strong>: ${s.service}
+            </div>`
+        ).join('');
+        $('#raw-services-list').html(rawHtml);
+
+        // Filtered services
+        const filteredServices = applyRules(rawServices);
+        let filteredHtml = filteredServices.map(s =>
+            `<div class="p-2 border-bottom ${s.visible ? '' : 'text-muted'}">
+                <strong>${s.carrier}</strong>: ${s.service}
+                ${!s.visible ? '<span class="badge badge-secondary">Hidden</span>' : ''}
+            </div>`
+        ).join('');
+        $('#filtered-services-list').html(filteredHtml || '<div class="text-muted text-center p-3">No services match the current rules</div>');
+
+        renderRules();
+    }
+
+    // Apply rules to services (client-side preview)
+    function applyRules(services) {
+        let filtered = services.map(s => ({...s}));
+
+        // Apply visibility from discovered services
+        filtered = filtered.filter(s => {
+            const config = discoveredServices.find(d => d.carrier === s.carrier && d.service === s.service);
+            return config ? config.visible : true;
+        });
+
+        // Apply conditional rules
+        const activeRules = serviceRules.filter(r => r.enabled).sort((a, b) => a.priority - b.priority);
+        for (const rule of activeRules) {
+            const conditionMet = filtered.some(s => matchesPattern(s, rule.ifServiceExists));
+            if (conditionMet) {
+                filtered = filtered.filter(s => !matchesPattern(s, rule.hideService));
+            }
+        }
+
+        return filtered;
+    }
+
+    // Pattern matching with wildcards
+    function matchesPattern(service, pattern) {
+        if (!pattern) return false;
+        const [carrierPattern, servicePattern] = pattern.split(':');
+        if (!carrierPattern || !servicePattern) return false;
+
+        const matchCarrier = carrierPattern === '*' ||
+            (carrierPattern.endsWith('*') && service.carrier.startsWith(carrierPattern.slice(0, -1))) ||
+            (carrierPattern.startsWith('*') && service.carrier.endsWith(carrierPattern.slice(1))) ||
+            service.carrier.toLowerCase() === carrierPattern.toLowerCase();
+
+        const matchService = servicePattern === '*' ||
+            (servicePattern.endsWith('*') && service.service.startsWith(servicePattern.slice(0, -1))) ||
+            (servicePattern.startsWith('*') && service.service.endsWith(servicePattern.slice(1))) ||
+            service.service.toLowerCase() === servicePattern.toLowerCase();
+
+        return matchCarrier && matchService;
+    }
+
+    // Render rules list
+    function renderRules() {
+        if (serviceRules.length === 0) {
+            $('#no-rules-message').show();
+            $('#rules-list').hide();
+            return;
+        }
+
+        $('#no-rules-message').hide();
+        $('#rules-list').show();
+
+        const rulesHtml = serviceRules.map((rule, index) => `
+            <div class="card mb-2" data-rule-index="${index}">
+                <div class="card-body p-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-1 text-center">
+                            <i class="fas fa-grip-vertical text-muted"></i>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="form-check form-check-inline">
+                                <input type="checkbox" class="form-check-input rule-enabled" data-index="${index}" ${rule.enabled ? 'checked' : ''}>
+                            </div>
+                            Hide <code>${rule.hideService}</code> if <code>${rule.ifServiceExists}</code> exists
+                            ${rule.description ? `<br><small class="text-muted">${rule.description}</small>` : ''}
+                        </div>
+                        <div class="col-md-2 text-right">
+                            <button type="button" class="btn btn-sm btn-danger rule-delete" data-index="${index}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        $('#rules-list').html(rulesHtml);
+
+        // Attach event handlers
+        $('.rule-enabled').change(function() {
+            const index = $(this).data('index');
+            serviceRules[index].enabled = $(this).is(':checked');
+            renderServices();
+        });
+
+        $('.rule-delete').click(function() {
+            const index = $(this).data('index');
+            serviceRules.splice(index, 1);
+            renderServices();
+        });
+    }
+
+    // Add new rule
+    $('#btn-add-rule').click(function() {
+        const hidePattern = prompt('Enter service pattern to hide (e.g., "USPS:Priority", "FedEx:*", "*:Express"):');
+        if (!hidePattern) return;
+
+        const ifPattern = prompt('Hide if this service exists (e.g., "USPS:GroundAdvantage", "UPS:Ground"):');
+        if (!ifPattern) return;
+
+        const description = prompt('Optional description for this rule:') || '';
+
+        serviceRules.push({
+            hideService: hidePattern,
+            ifServiceExists: ifPattern,
+            description: description,
+            enabled: true,
+            priority: nextRulePriority++
+        });
+
+        renderServices();
+    });
+
+    // Save configuration on form submit
+    $('form').submit(function() {
+        $('#discovered-services-json').val(JSON.stringify(discoveredServices));
+        $('#service-rules-json').val(JSON.stringify(serviceRules));
+    });
+
+    // Initialize
+    loadTestScenario();
+    if (discoveredServices.length > 0) {
+        rawServices = discoveredServices;
+        $('#services-panel, #rules-panel').show();
+        renderServices();
+    }
+})();
+</script>
