@@ -31,4 +31,10 @@ public class CarrierServiceConfig
     /// Gets or sets the display order for this service
     /// </summary>
     public int DisplayOrder { get; set; }
+
+    /// <summary>
+    /// Gets or sets the shipping rate/price for this service (for testing/preview only)
+    /// This is populated during service discovery but not persisted to configuration
+    /// </summary>
+    public decimal? Rate { get; set; }
 }

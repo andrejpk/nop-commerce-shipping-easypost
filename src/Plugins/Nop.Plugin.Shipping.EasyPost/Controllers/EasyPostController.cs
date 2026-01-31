@@ -20,6 +20,7 @@ using Nop.Services.Configuration;
 using Nop.Services.Directory;
 using Nop.Services.Helpers;
 using Nop.Services.Localization;
+using Nop.Services.Logging;
 using Nop.Services.Messages;
 using Nop.Services.Security;
 using Nop.Services.Shipping;
@@ -48,6 +49,7 @@ public class EasyPostController : BasePluginController
         private readonly IDateTimeHelper _dateTimeHelper;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILocalizationService _localizationService;
+        private readonly ILogger _logger;
         private readonly IMeasureService _measureService;
         private readonly INopFileProvider _nopFileProvider;
         private readonly INotificationService _notificationService;
@@ -69,6 +71,7 @@ public class EasyPostController : BasePluginController
             IDateTimeHelper dateTimeHelper,
             IHttpClientFactory httpClientFactory,
             ILocalizationService localizationService,
+            ILogger logger,
             IMeasureService measureService,
             INopFileProvider nopFileProvider,
             INotificationService notificationService,
@@ -86,6 +89,7 @@ public class EasyPostController : BasePluginController
             _dateTimeHelper = dateTimeHelper;
             _httpClientFactory = httpClientFactory;
             _localizationService = localizationService;
+            _logger = logger;
             _measureService = measureService;
             _nopFileProvider = nopFileProvider;
             _notificationService = notificationService;
@@ -107,6 +111,46 @@ public class EasyPostController : BasePluginController
             if (!await _permissionService.AuthorizeAsync(StandardPermission.Configuration.MANAGE_SHIPPING_SETTINGS))
                 return AccessDeniedView();
 
+            // Load complex collections from JSON string settings
+            var discoveredServices = new List<Domain.Configuration.CarrierServiceConfig>();
+            var serviceRules = new List<Domain.Configuration.ServiceDisplayRule>();
+
+            var discoveredServicesJson = await _settingService.GetSettingByKeyAsync<string>("EasyPostSettings.DiscoveredServices");
+            if (!string.IsNullOrEmpty(discoveredServicesJson))
+            {
+                try
+                {
+                    discoveredServices = Newtonsoft.Json.JsonConvert
+                        .DeserializeObject<List<Domain.Configuration.CarrierServiceConfig>>(discoveredServicesJson) ?? new();
+                }
+                catch (Exception ex)
+                {
+                    await _logger.ErrorAsync($"Failed to load discovered services: {ex.Message}", ex);
+                }
+            }
+
+            var serviceRulesJson = await _settingService.GetSettingByKeyAsync<string>("EasyPostSettings.ServiceDisplayRules");
+            if (!string.IsNullOrEmpty(serviceRulesJson))
+            {
+                try
+                {
+                    var settings = new Newtonsoft.Json.JsonSerializerSettings
+                    {
+                        Converters = new List<Newtonsoft.Json.JsonConverter>
+                        {
+                            new Newtonsoft.Json.Converters.StringEnumConverter()
+                        }
+                    };
+
+                    serviceRules = Newtonsoft.Json.JsonConvert
+                        .DeserializeObject<List<Domain.Configuration.ServiceDisplayRule>>(serviceRulesJson, settings) ?? new();
+                }
+                catch (Exception ex)
+                {
+                    await _logger.ErrorAsync($"Failed to load service rules: {ex.Message}", ex);
+                }
+            }
+
             var model = new ConfigurationModel
             {
                 ApiKey = _easyPostSettings.ApiKey,
@@ -116,8 +160,8 @@ public class EasyPostController : BasePluginController
                 CarrierAccounts = _easyPostSettings.CarrierAccounts ?? new(),
                 AddressVerification = _easyPostSettings.AddressVerification,
                 StrictAddressVerification = _easyPostSettings.StrictAddressVerification,
-                DiscoveredServices = _easyPostSettings.DiscoveredServices?.ToList() ?? new(),
-                ServiceDisplayRules = _easyPostSettings.ServiceDisplayRules?.ToList() ?? new()
+                DiscoveredServices = discoveredServices,
+                ServiceDisplayRules = serviceRules
             };
 
             // Populate country dropdown
@@ -203,20 +247,43 @@ public class EasyPostController : BasePluginController
                     _easyPostSettings.DiscoveredServices = Newtonsoft.Json.JsonConvert
                         .DeserializeObject<List<Domain.Configuration.CarrierServiceConfig>>(discoveredServicesJson) ?? new();
                 }
-                catch { /* Invalid JSON, skip */ }
+                catch (Exception ex)
+                {
+                    await _logger.ErrorAsync($"Failed to deserialize discovered services: {ex.Message}", ex);
+                }
             }
 
             if (!string.IsNullOrEmpty(serviceRulesJson))
             {
                 try
                 {
+                    var settings = new Newtonsoft.Json.JsonSerializerSettings
+                    {
+                        Converters = new List<Newtonsoft.Json.JsonConverter>
+                        {
+                            new Newtonsoft.Json.Converters.StringEnumConverter()
+                        }
+                    };
+
                     _easyPostSettings.ServiceDisplayRules = Newtonsoft.Json.JsonConvert
-                        .DeserializeObject<List<Domain.Configuration.ServiceDisplayRule>>(serviceRulesJson) ?? new();
+                        .DeserializeObject<List<Domain.Configuration.ServiceDisplayRule>>(serviceRulesJson, settings) ?? new();
                 }
-                catch { /* Invalid JSON, skip */ }
+                catch (Exception ex)
+                {
+                    await _logger.ErrorAsync($"Failed to deserialize service rules: {ex.Message}", ex);
+                }
             }
 
+            // Save simple settings
             await _settingService.SaveSettingAsync(_easyPostSettings);
+
+            // Manually serialize and save complex collections as JSON strings
+            // nopCommerce doesn't auto-serialize collections, so we need to do it explicitly
+            var servicesJsonToSave = Newtonsoft.Json.JsonConvert.SerializeObject(_easyPostSettings.DiscoveredServices ?? new());
+            var rulesJsonToSave = Newtonsoft.Json.JsonConvert.SerializeObject(_easyPostSettings.ServiceDisplayRules ?? new());
+
+            await _settingService.SetSettingAsync("EasyPostSettings.DiscoveredServices", servicesJsonToSave);
+            await _settingService.SetSettingAsync("EasyPostSettings.ServiceDisplayRules", rulesJsonToSave);
 
             //reset client configuration
             EasyPostService.ResetClientConfiguration();
@@ -241,28 +308,49 @@ public class EasyPostController : BasePluginController
         #region Service Configuration
 
         [HttpPost]
-        public async Task<IActionResult> DiscoverServices(string city, string stateProvinceId, string zipCode, string countryId)
+        public async Task<IActionResult> DiscoverServices(string city, string state, string zipCode, string countryId, string weight)
         {
             if (!await _permissionService.AuthorizeAsync(StandardPermission.Configuration.MANAGE_SHIPPING_SETTINGS))
                 return AccessDeniedView();
 
             try
             {
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(city))
+                    return Json(new { success = false, message = "City is required" });
+                if (string.IsNullOrWhiteSpace(zipCode))
+                    return Json(new { success = false, message = "ZIP code is required" });
+
+                // Get country for validation
+                var country = await _countryService.GetCountryByIdAsync(int.TryParse(countryId, out var cId) ? cId : 0);
+                if (country == null)
+                    return Json(new { success = false, message = "Please select a country" });
+
+                // Parse weight (default to 16oz = 1lb)
+                var weightInOunces = double.TryParse(weight, out var w) ? w : 16;
+
                 // Create a temporary address for testing
+                // We'll store the state abbreviation in Address2 as a workaround since we don't have StateProvinceId
                 var testAddress = new Core.Domain.Common.Address
                 {
                     City = city,
-                    StateProvinceId = int.TryParse(stateProvinceId, out var stateId) ? stateId : null,
+                    Address2 = state, // Store state abbreviation here temporarily
                     ZipPostalCode = zipCode,
-                    CountryId = int.TryParse(countryId, out var cId) ? cId : null,
-                    Address1 = "123 Test St" // Placeholder
+                    CountryId = country.Id,
+                    Address1 = "123 Test St" // Placeholder street address
                 };
 
-                var (services, error) = await _easyPostService.DiscoverServicesAsync(testAddress);
+                var (services, error) = await _easyPostService.DiscoverServicesAsync(testAddress, weightInOunces);
 
                 if (!string.IsNullOrEmpty(error))
                 {
-                    return Json(new { success = false, message = error });
+                    await _logger.ErrorAsync($"EasyPost service discovery failed: {error}");
+                    return Json(new { success = false, message = $"Failed to discover services: {error}" });
+                }
+
+                if (services == null || !services.Any())
+                {
+                    return Json(new { success = false, message = "No services found for this address" });
                 }
 
                 // Return services with their details
@@ -271,14 +359,16 @@ public class EasyPostController : BasePluginController
                     carrier = s.Carrier,
                     service = s.Service,
                     displayName = s.DisplayName,
-                    visible = s.Visible
+                    visible = s.Visible,
+                    rate = s.Rate
                 }).ToList();
 
                 return Json(new { success = true, services = result });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = ex.Message });
+                await _logger.ErrorAsync($"Error discovering services: {ex.Message}", ex);
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
             }
         }
 

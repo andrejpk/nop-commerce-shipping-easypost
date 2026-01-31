@@ -20,6 +20,7 @@ using Nop.Plugin.Shipping.EasyPost.Domain.Batch;
 using Nop.Plugin.Shipping.EasyPost.Domain.Shipment;
 using Nop.Services.Catalog;
 using Nop.Services.Common;
+using Nop.Services.Configuration;
 using Nop.Services.Customers;
 using Nop.Services.Directory;
 using Nop.Services.Localization;
@@ -50,6 +51,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
         private readonly ILocalizationService _localizationService;
         private readonly ILogger _logger;
         private readonly IMeasureService _measureService;
+        private readonly ISettingService _settingService;
         private readonly INotificationService _notificationService;
         private readonly IOrderService _orderService;
         private readonly IProductService _productService;
@@ -82,6 +84,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
             ILocalizationService localizationService,
             ILogger logger,
             IMeasureService measureService,
+            ISettingService settingService,
             INotificationService notificationService,
             IOrderService orderService,
             IProductService productService,
@@ -108,6 +111,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
             _localizationService = localizationService;
             _logger = logger;
             _measureService = measureService;
+            _settingService = settingService;
             _notificationService = notificationService;
             _orderService = orderService;
             _productService = productService;
@@ -1927,7 +1931,8 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
         /// The task result contains the list of discovered services with rates; error if exists
         /// </returns>
         public async Task<(List<Domain.Configuration.CarrierServiceConfig> Services, string Error)> DiscoverServicesAsync(
-            Nop.Core.Domain.Common.Address destinationAddress)
+            Nop.Core.Domain.Common.Address destinationAddress,
+            double weightInOunces = 16)
         {
             return await HandleFunctionAsync(async () =>
             {
@@ -1953,7 +1958,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                     Length = 10,
                     Width = 8,
                     Height = 4,
-                    Weight = 16 // 1 lb in ounces
+                    Weight = weightInOunces
                 };
 
                 var shipment = await _client.Shipment.Create(new Dictionary<string, object>
@@ -1973,7 +1978,8 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                     Service = rate.Service,
                     DisplayName = $"{rate.Carrier} {rate.Service}",
                     Visible = true,
-                    DisplayOrder = index
+                    DisplayOrder = index,
+                    Rate = decimal.TryParse(rate.Price, out var price) ? price : (decimal?)null
                 }).ToList();
 
                 return services;
@@ -1988,18 +1994,75 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
             var country = await _countryService.GetCountryByIdAsync(address.CountryId ?? 0);
             var state = await _stateProvinceService.GetStateProvinceByIdAsync(address.StateProvinceId ?? 0);
 
+            // For service discovery, state abbreviation might be in Address2 field
+            // Otherwise, look it up from StateProvinceId
+            var stateValue = state?.Abbreviation;
+            if (string.IsNullOrEmpty(stateValue) && !string.IsNullOrEmpty(address.Address2) && address.Address2.Length <= 3)
+            {
+                // Assume Address2 contains state abbreviation for test addresses
+                stateValue = address.Address2;
+            }
+
             return new Address
             {
                 Street1 = address.Address1,
-                Street2 = address.Address2,
+                Street2 = string.IsNullOrEmpty(stateValue) || stateValue == address.Address2 ? null : address.Address2,
                 City = address.City,
-                State = state?.Abbreviation ?? address.StateProvinceId.ToString(),
+                State = stateValue,
                 Zip = address.ZipPostalCode,
                 Country = country?.TwoLetterIsoCode ?? "US",
                 Company = address.Company,
                 Name = $"{address.FirstName} {address.LastName}".Trim(),
                 Phone = address.PhoneNumber
             };
+        }
+
+        /// <summary>
+        /// Loads discovered services from JSON setting
+        /// </summary>
+        private List<Domain.Configuration.CarrierServiceConfig> LoadDiscoveredServices()
+        {
+            try
+            {
+                var json = _settingService.GetSettingByKeyAsync<string>("EasyPostSettings.DiscoveredServices").Result;
+                if (string.IsNullOrEmpty(json))
+                    return new List<Domain.Configuration.CarrierServiceConfig>();
+
+                return Newtonsoft.Json.JsonConvert
+                    .DeserializeObject<List<Domain.Configuration.CarrierServiceConfig>>(json) ?? new();
+            }
+            catch
+            {
+                return new List<Domain.Configuration.CarrierServiceConfig>();
+            }
+        }
+
+        /// <summary>
+        /// Loads service display rules from JSON setting
+        /// </summary>
+        private List<Domain.Configuration.ServiceDisplayRule> LoadServiceDisplayRules()
+        {
+            try
+            {
+                var json = _settingService.GetSettingByKeyAsync<string>("EasyPostSettings.ServiceDisplayRules").Result;
+                if (string.IsNullOrEmpty(json))
+                    return new List<Domain.Configuration.ServiceDisplayRule>();
+
+                var settings = new Newtonsoft.Json.JsonSerializerSettings
+                {
+                    Converters = new List<Newtonsoft.Json.JsonConverter>
+                    {
+                        new Newtonsoft.Json.Converters.StringEnumConverter()
+                    }
+                };
+
+                return Newtonsoft.Json.JsonConvert
+                    .DeserializeObject<List<Domain.Configuration.ServiceDisplayRule>>(json, settings) ?? new();
+            }
+            catch
+            {
+                return new List<Domain.Configuration.ServiceDisplayRule>();
+            }
         }
 
         /// <summary>
@@ -2015,12 +2078,16 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
 
             var filteredRates = new List<ShippingRate>(rates);
 
+            // Load complex settings from JSON
+            var discoveredServices = LoadDiscoveredServices();
+            var serviceRules = LoadServiceDisplayRules();
+
             // Step 1: Filter by visibility settings from discovered services
-            if (_easyPostSettings.DiscoveredServices?.Any() == true)
+            if (discoveredServices?.Any() == true)
             {
                 filteredRates = filteredRates.Where(rate =>
                 {
-                    var config = _easyPostSettings.DiscoveredServices
+                    var config = discoveredServices
                         .FirstOrDefault(c => c.Carrier == rate.Carrier && c.Service == rate.Service);
 
                     // If no config exists, default to visible
@@ -2029,25 +2096,103 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 }).ToList();
             }
 
-            // Step 2: Apply conditional display rules (with wildcard support)
-            if (_easyPostSettings.ServiceDisplayRules?.Any() == true)
+            // Step 2: Apply display rules
+            if (serviceRules?.Any() == true)
             {
-                var activeRules = _easyPostSettings.ServiceDisplayRules
+                var activeRules = serviceRules
                     .Where(r => r.Enabled)
                     .OrderBy(r => r.Priority)
                     .ToList();
 
+                // Track which services have been matched by previous rules (for RemoveUnmatched)
+                var matchedRates = new HashSet<ShippingRate>();
+
                 foreach (var rule in activeRules)
                 {
-                    // Check if the condition service exists in the rate list
-                    var conditionExists = filteredRates.Any(rate =>
-                        MatchesServicePattern(rate, rule.IfServiceExists));
-
-                    if (conditionExists)
+                    if (rule.RuleType == Domain.Configuration.RuleType.PriorityList)
                     {
-                        // Remove rates that match the "hide" pattern
-                        filteredRates = filteredRates.Where(rate =>
-                            !MatchesServicePattern(rate, rule.HideService)).ToList();
+                        // Priority List Rule: Keep only the first available service from the priority list
+                        if (rule.PriorityServices?.Any() == true)
+                        {
+                            ShippingRate firstFound = null;
+                            var ratesToRemove = new List<ShippingRate>();
+
+                            foreach (var pattern in rule.PriorityServices)
+                            {
+                                var matchingRates = filteredRates.Where(rate =>
+                                    MatchesServicePattern(rate, pattern)).ToList();
+
+                                // Mark all matching rates as matched
+                                foreach (var rate in matchingRates)
+                                    matchedRates.Add(rate);
+
+                                if (matchingRates.Any() && firstFound == null)
+                                {
+                                    // Keep the first available service
+                                    firstFound = matchingRates.First();
+                                }
+                                else if (matchingRates.Any())
+                                {
+                                    // Mark subsequent matches for removal
+                                    ratesToRemove.AddRange(matchingRates);
+                                }
+                            }
+
+                            // Remove the marked rates
+                            filteredRates = filteredRates.Except(ratesToRemove).ToList();
+                        }
+                    }
+                    else if (rule.RuleType == Domain.Configuration.RuleType.PricePriorityList)
+                    {
+                        // Price-Priority List Rule: Keep only the cheapest service from the group
+                        if (rule.PriorityServices?.Any() == true)
+                        {
+                            var allMatchingRates = new List<ShippingRate>();
+
+                            foreach (var pattern in rule.PriorityServices)
+                            {
+                                var matchingRates = filteredRates.Where(rate =>
+                                    MatchesServicePattern(rate, pattern)).ToList();
+                                allMatchingRates.AddRange(matchingRates);
+                            }
+
+                            // Mark all matching rates as matched
+                            foreach (var rate in allMatchingRates)
+                                matchedRates.Add(rate);
+
+                            if (allMatchingRates.Count > 1)
+                            {
+                                // Sort by rate (price) ascending and keep only the cheapest
+                                var cheapest = allMatchingRates.OrderBy(r => r.Rate).First();
+                                var toRemove = allMatchingRates.Where(r => r != cheapest).ToList();
+                                filteredRates = filteredRates.Except(toRemove).ToList();
+                            }
+                        }
+                    }
+                    else if (rule.RuleType == Domain.Configuration.RuleType.RemoveUnmatched)
+                    {
+                        // Remove Unmatched Rule: Remove any services not matched by previous rules
+                        filteredRates = filteredRates.Where(rate => matchedRates.Contains(rate)).ToList();
+                    }
+                    else
+                    {
+                        // Conditional Hide Rule
+                        // Check if the condition service exists (or if it's unconditional)
+                        var conditionExists = string.IsNullOrEmpty(rule.IfServiceExists) ||
+                            filteredRates.Any(rate => MatchesServicePattern(rate, rule.IfServiceExists));
+
+                        if (conditionExists)
+                        {
+                            // Mark rates that match the hide pattern as matched (they're being processed)
+                            var hiddenRates = filteredRates.Where(rate =>
+                                MatchesServicePattern(rate, rule.HideService)).ToList();
+                            foreach (var rate in hiddenRates)
+                                matchedRates.Add(rate);
+
+                            // Remove rates that match the "hide" pattern
+                            filteredRates = filteredRates.Where(rate =>
+                                !MatchesServicePattern(rate, rule.HideService)).ToList();
+                        }
                     }
                 }
             }
