@@ -170,8 +170,9 @@
         }
 
         function populateServiceDropdowns() {
+            const escapeHtml = window.EasyPost.escapeHtml;
             const options = rawServices.map(s =>
-                `<option value="${s.carrier}:${s.service}">${s.displayName}</option>`
+                `<option value="${escapeHtml(s.carrier)}:${escapeHtml(s.service)}">${escapeHtml(s.displayName)}</option>`
             ).join('');
 
             $('#rule-hide-service, #rule-if-service, #priority-service-select, #price-priority-service-select')
