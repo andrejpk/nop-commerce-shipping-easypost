@@ -168,7 +168,7 @@
             </div>
         </div>
 
-        @if (!string.IsNullOrEmpty(Model.ApiKey))
+        @if (!string.IsNullOrEmpty(Model.ApiKey) || !string.IsNullOrEmpty(Model.TestApiKey))
         {
             <div class="card card-default no-margin" id="service-configuration">
                 <div class="card-header">
