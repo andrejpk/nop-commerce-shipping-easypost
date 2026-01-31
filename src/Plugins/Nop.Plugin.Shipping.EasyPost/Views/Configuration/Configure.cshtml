@@ -30,19 +30,17 @@
     </div>
 </form>
 
-@section scripts {
-    <script src="~/Plugins/Shipping.EasyPost/js/utils.js"></script>
-    <script src="~/Plugins/Shipping.EasyPost/js/pattern-matcher.js"></script>
-    <script src="~/Plugins/Shipping.EasyPost/js/rule-manager.js"></script>
-    <script src="~/Plugins/Shipping.EasyPost/js/service-discovery.js"></script>
-    <script>
-        // Initialize configuration with server-side data
-        window.EasyPostConfig = {
-            discoveredServices: @Html.Raw(Json.Serialize(Model.DiscoveredServices)),
-            serviceDisplayRules: @Html.Raw(Json.Serialize(Model.ServiceDisplayRules)),
-            urls: {
-                discoverServices: '@Url.Action("DiscoverServices", "EasyPost")'
-            }
-        };
-    </script>
-}
+<script src="~/Plugins/Shipping.EasyPost/js/utils.js"></script>
+<script src="~/Plugins/Shipping.EasyPost/js/pattern-matcher.js"></script>
+<script src="~/Plugins/Shipping.EasyPost/js/rule-manager.js"></script>
+<script src="~/Plugins/Shipping.EasyPost/js/service-discovery.js"></script>
+<script>
+    // Initialize configuration with server-side data
+    window.EasyPostConfig = {
+        discoveredServices: @Html.Raw(Json.Serialize(Model.DiscoveredServices)),
+        serviceDisplayRules: @Html.Raw(Json.Serialize(Model.ServiceDisplayRules)),
+        urls: {
+            discoverServices: '@Url.Action("DiscoverServices", "EasyPost")'
+        }
+    };
+</script>

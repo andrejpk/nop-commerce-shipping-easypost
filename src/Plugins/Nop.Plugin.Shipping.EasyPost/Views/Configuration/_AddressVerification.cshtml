@@ -1,20 +1,5 @@
 @model ConfigurationModel
 
-<script>
-    $(document).ready(function () {
-        $("#@Html.IdFor(model => model.AddressVerification)").click(toggleAddressVerification);
-        toggleAddressVerification();
-    });
-
-    function toggleAddressVerification() {
-        if ($('#@Html.IdFor(model => model.AddressVerification)').is(':checked')) {
-            $('#strict-address-verification').showElement();
-        } else {
-            $('#strict-address-verification').hideElement();
-        }
-    }
-</script>
-
 <div class="card card-default no-margin">
     <div class="card-header">
         @T("Plugins.Shipping.EasyPost.Configuration.AddressVerification")
@@ -47,3 +32,18 @@
         </nop-nested-setting>
     </div>
 </div>
+
+<script>
+    $(document).ready(function () {
+        $("#@Html.IdFor(model => model.AddressVerification)").click(toggleAddressVerification);
+        toggleAddressVerification();
+    });
+
+    function toggleAddressVerification() {
+        if ($('#@Html.IdFor(model => model.AddressVerification)').is(':checked')) {
+            $('#strict-address-verification').showElement();
+        } else {
+            $('#strict-address-verification').hideElement();
+        }
+    }
+</script>
