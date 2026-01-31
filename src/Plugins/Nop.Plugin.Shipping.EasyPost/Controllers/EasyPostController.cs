@@ -112,7 +112,24 @@ public class EasyPostController : BasePluginController
                 UseAllAvailableCarriers = _easyPostSettings.UseAllAvailableCarriers,
                 CarrierAccounts = _easyPostSettings.CarrierAccounts ?? new(),
                 AddressVerification = _easyPostSettings.AddressVerification,
-                StrictAddressVerification = _easyPostSettings.StrictAddressVerification
+                StrictAddressVerification = _easyPostSettings.StrictAddressVerification,
+                DiscoveredServices = _easyPostSettings.DiscoveredServices?.ToList() ?? new(),
+                ServiceDisplayRules = _easyPostSettings.ServiceDisplayRules?.ToList() ?? new()
+            };
+
+            // Populate country dropdown
+            var countries = await _nopEngine.Resolve<Nop.Services.Directory.ICountryService>().GetAllCountriesAsync(showHidden: true);
+            model.AvailableCountries = countries.Select(c => new SelectListItem
+            {
+                Text = c.Name,
+                Value = c.Id.ToString()
+            }).ToList();
+            model.AvailableCountries.Insert(0, new SelectListItem { Text = "Select country", Value = "" });
+
+            // Populate state dropdown (will be updated via AJAX based on country selection)
+            model.AvailableStates = new List<SelectListItem>
+            {
+                new SelectListItem { Text = "Select state", Value = "" }
             };
 
             //get configured carrier accounts
@@ -192,6 +209,80 @@ public class EasyPostController : BasePluginController
             _notificationService.SuccessNotification(await _localizationService.GetResourceAsync("Admin.Plugins.Saved"));
 
             return await Configure();
+        }
+
+        #endregion
+
+        #region Service Configuration
+
+        [HttpPost]
+        public async Task<IActionResult> DiscoverServices(string city, string stateProvinceId, string zipCode, string countryId)
+        {
+            if (!await _permissionService.AuthorizeAsync(StandardPermission.Configuration.MANAGE_SHIPPING_SETTINGS))
+                return AccessDeniedView();
+
+            try
+            {
+                // Create a temporary address for testing
+                var testAddress = new Core.Domain.Common.Address
+                {
+                    City = city,
+                    StateProvinceId = int.TryParse(stateProvinceId, out var stateId) ? stateId : null,
+                    ZipPostalCode = zipCode,
+                    CountryId = int.TryParse(countryId, out var cId) ? cId : null,
+                    Address1 = "123 Test St" // Placeholder
+                };
+
+                var (services, error) = await _easyPostService.DiscoverServicesAsync(testAddress);
+
+                if (!string.IsNullOrEmpty(error))
+                {
+                    return Json(new { success = false, message = error });
+                }
+
+                // Return services with their details
+                var result = services.Select(s => new
+                {
+                    carrier = s.Carrier,
+                    service = s.Service,
+                    displayName = s.DisplayName,
+                    visible = s.Visible
+                }).ToList();
+
+                return Json(new { success = true, services = result });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SaveServiceConfiguration(string servicesJson, string rulesJson)
+        {
+            if (!await _permissionService.AuthorizeAsync(StandardPermission.Configuration.MANAGE_SHIPPING_SETTINGS))
+                return AccessDeniedView();
+
+            try
+            {
+                // Deserialize the JSON data
+                var services = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Domain.Configuration.CarrierServiceConfig>>(servicesJson);
+                var rules = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Domain.Configuration.ServiceDisplayRule>>(rulesJson);
+
+                _easyPostSettings.DiscoveredServices = services ?? new();
+                _easyPostSettings.ServiceDisplayRules = rules ?? new();
+
+                await _settingService.SaveSettingAsync(_easyPostSettings);
+
+                _notificationService.SuccessNotification(
+                    await _localizationService.GetResourceAsync("Admin.Plugins.Saved"));
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
 
         #endregion

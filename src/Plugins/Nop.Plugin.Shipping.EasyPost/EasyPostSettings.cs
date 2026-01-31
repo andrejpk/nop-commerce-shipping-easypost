@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Nop.Core.Configuration;
+using Nop.Plugin.Shipping.EasyPost.Domain.Configuration;
 
 namespace Nop.Plugin.Shipping.EasyPost
 {
@@ -60,5 +61,17 @@ namespace Nop.Plugin.Shipping.EasyPost
         /// Gets or sets a value indicating whether to use SmartRate feature
         /// </summary>
         public bool UseSmartRates { get; set; }
+
+        /// <summary>
+        /// Gets or sets the list of discovered carrier-service configurations
+        /// This is populated when the admin discovers services using a test address
+        /// </summary>
+        public List<CarrierServiceConfig> DiscoveredServices { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the list of display rules for conditional service hiding
+        /// Rules like "Hide USPS Priority if USPS GroundAdvantage exists"
+        /// </summary>
+        public List<ServiceDisplayRule> ServiceDisplayRules { get; set; } = new();
     }
 }

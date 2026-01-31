@@ -1612,7 +1612,10 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 //whether this is a free shipping
                 var freeShipping = request.Items.All(item => item.Product.IsFreeShipping);
 
-                var options = rates?.Select(rate => new Nop.Core.Domain.Shipping.ShippingOption
+                // Apply carrier service configuration filtering
+                var filteredRates = FilterRatesByConfiguration(rates);
+
+                var options = filteredRates?.Select(rate => new Nop.Core.Domain.Shipping.ShippingOption
                 {
                     Name = $"{rate.Carrier} {rate.Service}".TrimEnd(' '),
                     Rate = freeShipping ? decimal.Zero : rate.Rate,
@@ -1908,6 +1911,182 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
 
                 return true;
             });
+        }
+
+        #endregion
+
+        #region Carrier service configuration
+
+        /// <summary>
+        /// Discovers available carrier services by creating a test shipment
+        /// Uses the store's primary address as origin
+        /// </summary>
+        /// <param name="destinationAddress">Destination address for test shipment</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the list of discovered services with rates; error if exists
+        /// </returns>
+        public async Task<(List<Domain.Configuration.CarrierServiceConfig> Services, string Error)> DiscoverServicesAsync(
+            Nop.Core.Domain.Common.Address destinationAddress)
+        {
+            return await HandleFunctionAsync(async () =>
+            {
+                if (!IsConfigured())
+                    throw new NopException("Plugin not configured");
+
+                if (destinationAddress == null)
+                    throw new ArgumentNullException(nameof(destinationAddress));
+
+                // Get store's primary (warehouse) address as origin
+                var warehouse = (await _warehouseService.GetAllWarehousesAsync()).FirstOrDefault()
+                    ?? throw new NopException("No warehouse configured");
+
+                var fromAddress = await PrepareEasyPostAddressAsync(warehouse.Address);
+                var toAddress = await PrepareEasyPostAddressAsync(destinationAddress);
+
+                // Standard small parcel for testing
+                var parcel = new Parcel
+                {
+                    Length = 10,
+                    Width = 8,
+                    Height = 4,
+                    Weight = 16 // 1 lb in ounces
+                };
+
+                var shipment = await _client.Shipment.Create(new Dictionary<string, object>
+                {
+                    ["from_address"] = fromAddress,
+                    ["to_address"] = toAddress,
+                    ["parcel"] = parcel
+                });
+
+                if (!shipment?.Rates?.Any() ?? true)
+                    throw new NopException("No rates returned from test shipment");
+
+                // Convert rates to carrier service configs
+                var storeCurrency = await _currencyService.GetCurrencyByIdAsync(_currencySettings.PrimaryStoreCurrencyId)
+                    ?? throw new NopException("Primary store currency is not set");
+
+                var services = await shipment.Rates.SelectAwait(async (rate, index) => new Domain.Configuration.CarrierServiceConfig
+                {
+                    Carrier = rate.Carrier,
+                    Service = rate.Service,
+                    DisplayName = $"{rate.Carrier} {rate.Service}",
+                    Visible = true,
+                    DisplayOrder = index
+                }).ToListAsync();
+
+                return services;
+            });
+        }
+
+        /// <summary>
+        /// Prepares an EasyPost address from a nopCommerce address
+        /// </summary>
+        private async Task<Address> PrepareEasyPostAddressAsync(Nop.Core.Domain.Common.Address address)
+        {
+            var country = await _countryService.GetCountryByIdAsync(address.CountryId ?? 0);
+            var state = await _stateProvinceService.GetStateProvinceByIdAsync(address.StateProvinceId ?? 0);
+
+            return new Address
+            {
+                Street1 = address.Address1,
+                Street2 = address.Address2,
+                City = address.City,
+                State = state?.Abbreviation ?? address.StateProvinceId.ToString(),
+                Zip = address.ZipPostalCode,
+                Country = country?.TwoLetterIsoCode ?? "US",
+                Company = address.Company,
+                Name = $"{address.FirstName} {address.LastName}".Trim(),
+                Phone = address.PhoneNumber
+            };
+        }
+
+        /// <summary>
+        /// Filters shipping rates based on configuration settings
+        /// Applies visibility rules and conditional display rules
+        /// </summary>
+        /// <param name="rates">List of shipping rates to filter</param>
+        /// <returns>Filtered list of shipping rates</returns>
+        private List<ShippingRate> FilterRatesByConfiguration(List<ShippingRate> rates)
+        {
+            if (rates == null || !rates.Any())
+                return rates;
+
+            var filteredRates = new List<ShippingRate>(rates);
+
+            // Step 1: Filter by visibility settings from discovered services
+            if (_easyPostSettings.DiscoveredServices?.Any() == true)
+            {
+                filteredRates = filteredRates.Where(rate =>
+                {
+                    var config = _easyPostSettings.DiscoveredServices
+                        .FirstOrDefault(c => c.Carrier == rate.Carrier && c.Service == rate.Service);
+
+                    // If no config exists, default to visible
+                    // If config exists, use its Visible property
+                    return config?.Visible ?? true;
+                }).ToList();
+            }
+
+            // Step 2: Apply conditional display rules (with wildcard support)
+            if (_easyPostSettings.ServiceDisplayRules?.Any() == true)
+            {
+                var activeRules = _easyPostSettings.ServiceDisplayRules
+                    .Where(r => r.Enabled)
+                    .OrderBy(r => r.Priority)
+                    .ToList();
+
+                foreach (var rule in activeRules)
+                {
+                    // Check if the condition service exists in the rate list
+                    var conditionExists = filteredRates.Any(rate =>
+                        MatchesServicePattern(rate, rule.IfServiceExists));
+
+                    if (conditionExists)
+                    {
+                        // Remove rates that match the "hide" pattern
+                        filteredRates = filteredRates.Where(rate =>
+                            !MatchesServicePattern(rate, rule.HideService)).ToList();
+                    }
+                }
+            }
+
+            return filteredRates;
+        }
+
+        /// <summary>
+        /// Checks if a shipping rate matches a service pattern (supports wildcards)
+        /// Pattern format: "Carrier:Service" (e.g., "USPS:Priority", "FedEx:*", "*:Ground")
+        /// </summary>
+        /// <param name="rate">Shipping rate to check</param>
+        /// <param name="pattern">Pattern to match against</param>
+        /// <returns>True if the rate matches the pattern</returns>
+        private bool MatchesServicePattern(ShippingRate rate, string pattern)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+                return false;
+
+            var parts = pattern.Split(':', 2);
+            if (parts.Length != 2)
+                return false;
+
+            var carrierPattern = parts[0].Trim();
+            var servicePattern = parts[1].Trim();
+
+            // Match carrier (with wildcard support)
+            var carrierMatches = carrierPattern == "*" ||
+                (carrierPattern.EndsWith("*") && rate.Carrier.StartsWith(carrierPattern[..^1], StringComparison.OrdinalIgnoreCase)) ||
+                (carrierPattern.StartsWith("*") && rate.Carrier.EndsWith(carrierPattern[1..], StringComparison.OrdinalIgnoreCase)) ||
+                string.Equals(rate.Carrier, carrierPattern, StringComparison.OrdinalIgnoreCase);
+
+            // Match service (with wildcard support)
+            var serviceMatches = servicePattern == "*" ||
+                (servicePattern.EndsWith("*") && rate.Service.StartsWith(servicePattern[..^1], StringComparison.OrdinalIgnoreCase)) ||
+                (servicePattern.StartsWith("*") && rate.Service.EndsWith(servicePattern[1..], StringComparison.OrdinalIgnoreCase)) ||
+                string.Equals(rate.Service, servicePattern, StringComparison.OrdinalIgnoreCase);
+
+            return carrierMatches && serviceMatches;
         }
 
         #endregion
