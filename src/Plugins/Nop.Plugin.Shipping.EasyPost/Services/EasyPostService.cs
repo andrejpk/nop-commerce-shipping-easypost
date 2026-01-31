@@ -2152,14 +2152,10 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                         // Price-Priority List Rule: Keep only the cheapest service from the group
                         if (rule.PriorityServices?.Any() == true)
                         {
-                            var allMatchingRates = new List<ShippingRate>();
-
-                            foreach (var pattern in rule.PriorityServices)
-                            {
-                                var matchingRates = filteredRates.Where(rate =>
-                                    MatchesServicePattern(rate, pattern)).ToList();
-                                allMatchingRates.AddRange(matchingRates);
-                            }
+                            var allMatchingRates = rule.PriorityServices
+                                .SelectMany(pattern => filteredRates.Where(rate =>
+                                    MatchesServicePattern(rate, pattern)))
+                                .ToList();
 
                             // Mark all matching rates as matched
                             foreach (var rate in allMatchingRates)
