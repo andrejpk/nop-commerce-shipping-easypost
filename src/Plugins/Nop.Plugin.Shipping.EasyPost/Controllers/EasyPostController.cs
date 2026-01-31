@@ -372,34 +372,6 @@ public class EasyPostController : BasePluginController
             }
         }
 
-        [HttpPost]
-        public async Task<IActionResult> SaveServiceConfiguration(string servicesJson, string rulesJson)
-        {
-            if (!await _permissionService.AuthorizeAsync(StandardPermission.Configuration.MANAGE_SHIPPING_SETTINGS))
-                return AccessDeniedView();
-
-            try
-            {
-                // Deserialize the JSON data
-                var services = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Domain.Configuration.CarrierServiceConfig>>(servicesJson);
-                var rules = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Domain.Configuration.ServiceDisplayRule>>(rulesJson);
-
-                _easyPostSettings.DiscoveredServices = services ?? new();
-                _easyPostSettings.ServiceDisplayRules = rules ?? new();
-
-                await _settingService.SaveSettingAsync(_easyPostSettings);
-
-                _notificationService.SuccessNotification(
-                    await _localizationService.GetResourceAsync("Admin.Plugins.Saved"));
-
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = ex.Message });
-            }
-        }
-
         #endregion
 
         #region Shipment

@@ -2024,15 +2024,16 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
         {
             try
             {
-                var json = _settingService.GetSettingByKeyAsync<string>("EasyPostSettings.DiscoveredServices").Result;
+                var json = _settingService.GetSettingByKeyAsync<string>("EasyPostSettings.DiscoveredServices").GetAwaiter().GetResult();
                 if (string.IsNullOrEmpty(json))
                     return new List<Domain.Configuration.CarrierServiceConfig>();
 
                 return Newtonsoft.Json.JsonConvert
                     .DeserializeObject<List<Domain.Configuration.CarrierServiceConfig>>(json) ?? new();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.Error($"Failed to load discovered services from settings", ex);
                 return new List<Domain.Configuration.CarrierServiceConfig>();
             }
         }
@@ -2044,7 +2045,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
         {
             try
             {
-                var json = _settingService.GetSettingByKeyAsync<string>("EasyPostSettings.ServiceDisplayRules").Result;
+                var json = _settingService.GetSettingByKeyAsync<string>("EasyPostSettings.ServiceDisplayRules").GetAwaiter().GetResult();
                 if (string.IsNullOrEmpty(json))
                     return new List<Domain.Configuration.ServiceDisplayRule>();
 
@@ -2059,8 +2060,9 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 return Newtonsoft.Json.JsonConvert
                     .DeserializeObject<List<Domain.Configuration.ServiceDisplayRule>>(json, settings) ?? new();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.Error($"Failed to load service display rules from settings", ex);
                 return new List<Domain.Configuration.ServiceDisplayRule>();
             }
         }
@@ -2088,7 +2090,9 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 filteredRates = filteredRates.Where(rate =>
                 {
                     var config = discoveredServices
-                        .FirstOrDefault(c => c.Carrier == rate.Carrier && c.Service == rate.Service);
+                        .FirstOrDefault(c =>
+                            string.Equals(c.Carrier, rate.Carrier, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(c.Service, rate.Service, StringComparison.OrdinalIgnoreCase));
 
                     // If no config exists, default to visible
                     // If config exists, use its Visible property
@@ -2105,7 +2109,8 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                     .ToList();
 
                 // Track which services have been matched by previous rules (for RemoveUnmatched)
-                var matchedRates = new HashSet<ShippingRate>();
+                // Use carrier:service as key to avoid reference equality issues
+                var matchedRateKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var rule in activeRules)
                 {
@@ -2124,7 +2129,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
 
                                 // Mark all matching rates as matched
                                 foreach (var rate in matchingRates)
-                                    matchedRates.Add(rate);
+                                    matchedRateKeys.Add($"{rate.Carrier}:{rate.Service}");
 
                                 if (matchingRates.Any() && firstFound == null)
                                 {
@@ -2158,7 +2163,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
 
                             // Mark all matching rates as matched
                             foreach (var rate in allMatchingRates)
-                                matchedRates.Add(rate);
+                                matchedRateKeys.Add($"{rate.Carrier}:{rate.Service}");
 
                             if (allMatchingRates.Count > 1)
                             {
@@ -2172,7 +2177,8 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                     else if (rule.RuleType == Domain.Configuration.RuleType.RemoveUnmatched)
                     {
                         // Remove Unmatched Rule: Remove any services not matched by previous rules
-                        filteredRates = filteredRates.Where(rate => matchedRates.Contains(rate)).ToList();
+                        filteredRates = filteredRates.Where(rate =>
+                            matchedRateKeys.Contains($"{rate.Carrier}:{rate.Service}")).ToList();
                     }
                     else
                     {
@@ -2187,7 +2193,7 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                             var hiddenRates = filteredRates.Where(rate =>
                                 MatchesServicePattern(rate, rule.HideService)).ToList();
                             foreach (var rate in hiddenRates)
-                                matchedRates.Add(rate);
+                                matchedRateKeys.Add($"{rate.Carrier}:{rate.Service}");
 
                             // Remove rates that match the "hide" pattern
                             filteredRates = filteredRates.Where(rate =>

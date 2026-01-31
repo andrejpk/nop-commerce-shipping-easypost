@@ -15,18 +15,24 @@
     function matchesPattern(service, pattern) {
         if (!pattern) return false;
 
-        const [carrierPattern, servicePattern] = pattern.split(':');
-        if (!carrierPattern || !servicePattern) return false;
+        const [carrierPatternRaw, servicePatternRaw] = pattern.split(':');
+        if (!carrierPatternRaw || !servicePatternRaw) return false;
+
+        // Normalize to lowercase for case-insensitive matching
+        const carrierPattern = carrierPatternRaw.toLowerCase();
+        const servicePattern = servicePatternRaw.toLowerCase();
+        const carrier = (service.carrier || '').toLowerCase();
+        const serviceName = (service.service || '').toLowerCase();
 
         const matchCarrier = carrierPattern === '*' ||
-            (carrierPattern.endsWith('*') && service.carrier.startsWith(carrierPattern.slice(0, -1))) ||
-            (carrierPattern.startsWith('*') && service.carrier.endsWith(carrierPattern.slice(1))) ||
-            service.carrier.toLowerCase() === carrierPattern.toLowerCase();
+            (carrierPattern.endsWith('*') && carrier.startsWith(carrierPattern.slice(0, -1))) ||
+            (carrierPattern.startsWith('*') && carrier.endsWith(carrierPattern.slice(1))) ||
+            carrier === carrierPattern;
 
         const matchService = servicePattern === '*' ||
-            (servicePattern.endsWith('*') && service.service.startsWith(servicePattern.slice(0, -1))) ||
-            (servicePattern.startsWith('*') && service.service.endsWith(servicePattern.slice(1))) ||
-            service.service.toLowerCase() === servicePattern.toLowerCase();
+            (servicePattern.endsWith('*') && serviceName.startsWith(servicePattern.slice(0, -1))) ||
+            (servicePattern.startsWith('*') && serviceName.endsWith(servicePattern.slice(1))) ||
+            serviceName === servicePattern;
 
         return matchCarrier && matchService;
     }

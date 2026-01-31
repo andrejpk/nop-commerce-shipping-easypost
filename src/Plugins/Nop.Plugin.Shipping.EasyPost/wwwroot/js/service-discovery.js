@@ -128,22 +128,27 @@
         }
 
         function renderRawServices() {
+            const escapeHtml = window.EasyPost.escapeHtml;
+            const formatCurrency = window.EasyPost.formatCurrency;
+
             const html = rawServices.map(s =>
                 `<div class="p-2 border-bottom d-flex justify-content-between align-items-center">
-                    <span><strong>${s.carrier}</strong>: ${s.service}</span>
-                    <span class="badge badge-info">$${s.rate ? s.rate.toFixed(2) : '0.00'}</span>
+                    <span><strong>${escapeHtml(s.carrier)}</strong>: ${escapeHtml(s.service)}</span>
+                    <span class="badge badge-info">$${formatCurrency(s.rate)}</span>
                 </div>`
             ).join('');
             $('#raw-services-list').html(html);
         }
 
         function renderFilteredServices() {
+            const escapeHtml = window.EasyPost.escapeHtml;
+            const formatCurrency = window.EasyPost.formatCurrency;
             const { visible, hidden } = ruleManager.applyRules(rawServices);
 
             let html = visible.map(s =>
                 `<div class="p-2 border-bottom d-flex justify-content-between align-items-center">
-                    <span><strong>${s.carrier}</strong>: ${s.service}</span>
-                    <span class="badge badge-success">$${s.rate ? s.rate.toFixed(2) : '0.00'}</span>
+                    <span><strong>${escapeHtml(s.carrier)}</strong>: ${escapeHtml(s.service)}</span>
+                    <span class="badge badge-success">$${formatCurrency(s.rate)}</span>
                 </div>`
             ).join('');
 
@@ -151,12 +156,12 @@
                 `<div class="p-2 border-bottom">
                     <div class="d-flex justify-content-between align-items-center text-muted">
                         <span style="text-decoration: line-through;">
-                            <strong>${s.carrier}</strong>: ${s.service}
+                            <strong>${escapeHtml(s.carrier)}</strong>: ${escapeHtml(s.service)}
                         </span>
-                        <span class="badge badge-secondary" style="text-decoration: none;">$${s.rate ? s.rate.toFixed(2) : '0.00'}</span>
+                        <span class="badge badge-secondary" style="text-decoration: none;">$${formatCurrency(s.rate)}</span>
                     </div>
                     <small class="text-danger">
-                        <i class="fas fa-ban"></i> ${s.hiddenReason}
+                        <i class="fas fa-ban"></i> ${escapeHtml(s.hiddenReason)}
                     </small>
                 </div>`
             ).join('');
@@ -218,6 +223,7 @@
         }
 
         function getRuleContent(rule, index) {
+            const escapeHtml = window.EasyPost.escapeHtml;
             const isPriorityList = rule.ruleType === 'PriorityList' || rule.ruleType === 1;
             const isPricePriorityList = rule.ruleType === 'PricePriorityList' || rule.ruleType === 2;
             const isRemoveUnmatched = rule.ruleType === 'RemoveUnmatched' || rule.ruleType === 3;
@@ -229,9 +235,9 @@
                     </div>
                     <strong>Priority List:</strong> Show first available from:
                     <ol class="mb-0 pl-4">
-                        ${rule.priorityServices.map(s => `<li><code>${s}</code></li>`).join('')}
+                        ${rule.priorityServices.map(s => `<li><code>${escapeHtml(s)}</code></li>`).join('')}
                     </ol>
-                    ${rule.description ? `<small class="text-muted">${rule.description}</small>` : ''}
+                    ${rule.description ? `<small class="text-muted">${escapeHtml(rule.description)}</small>` : ''}
                 `;
             } else if (isPricePriorityList) {
                 return `
@@ -240,9 +246,9 @@
                     </div>
                     <strong>Cheapest From:</strong>
                     <ul class="mb-0 pl-4">
-                        ${rule.priorityServices.map(s => `<li><code>${s}</code></li>`).join('')}
+                        ${rule.priorityServices.map(s => `<li><code>${escapeHtml(s)}</code></li>`).join('')}
                     </ul>
-                    ${rule.description ? `<small class="text-muted">${rule.description}</small>` : ''}
+                    ${rule.description ? `<small class="text-muted">${escapeHtml(rule.description)}</small>` : ''}
                 `;
             } else if (isRemoveUnmatched) {
                 return `
@@ -250,18 +256,18 @@
                         <input type="checkbox" class="form-check-input rule-enabled" data-index="${index}" ${rule.enabled ? 'checked' : ''}>
                     </div>
                     <strong>Remove Unmatched:</strong> Hide services not matched by previous rules
-                    ${rule.description ? `<br><small class="text-muted">${rule.description}</small>` : ''}
+                    ${rule.description ? `<br><small class="text-muted">${escapeHtml(rule.description)}</small>` : ''}
                 `;
             } else {
                 const condition = rule.ifServiceExists
-                    ? `if <code>${rule.ifServiceExists}</code> exists`
+                    ? `if <code>${escapeHtml(rule.ifServiceExists)}</code> exists`
                     : `<strong>always</strong>`;
                 return `
                     <div class="form-check form-check-inline">
                         <input type="checkbox" class="form-check-input rule-enabled" data-index="${index}" ${rule.enabled ? 'checked' : ''}>
                     </div>
-                    Hide <code>${rule.hideService}</code> ${condition}
-                    ${rule.description ? `<br><small class="text-muted">${rule.description}</small>` : ''}
+                    Hide <code>${escapeHtml(rule.hideService)}</code> ${condition}
+                    ${rule.description ? `<br><small class="text-muted">${escapeHtml(rule.description)}</small>` : ''}
                 `;
             }
         }
@@ -392,6 +398,8 @@
             });
 
             function renderPriorityList(services) {
+                const escapeHtml = window.EasyPost.escapeHtml;
+
                 if (services.length === 0) {
                     $('#priority-services-list').html('<div class="text-muted text-center py-2">No services added yet</div>');
                     return;
@@ -399,7 +407,7 @@
 
                 const html = services.map((service, index) => `
                     <div class="d-flex align-items-center justify-content-between p-2 border-bottom">
-                        <span><strong>${index + 1}.</strong> ${service}</span>
+                        <span><strong>${index + 1}.</strong> ${escapeHtml(service)}</span>
                         <div>
                             <button type="button" class="btn btn-sm btn-link priority-move-up" data-index="${index}" ${index === 0 ? 'disabled' : ''}>
                                 <i class="fas fa-arrow-up"></i>
@@ -475,6 +483,8 @@
             });
 
             function renderPricePriorityList(services) {
+                const escapeHtml = window.EasyPost.escapeHtml;
+
                 if (services.length === 0) {
                     $('#price-priority-services-list').html('<div class="text-muted text-center py-2">No services added yet</div>');
                     return;
@@ -482,7 +492,7 @@
 
                 const html = services.map((service, index) => `
                     <div class="d-flex align-items-center justify-content-between p-2 border-bottom">
-                        <span>${service}</span>
+                        <span>${escapeHtml(service)}</span>
                         <button type="button" class="btn btn-sm btn-link text-danger price-priority-remove" data-index="${index}">
                             <i class="fas fa-times"></i>
                         </button>

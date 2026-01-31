@@ -117,10 +117,11 @@
                 if (allMatchingServices.length > 1) {
                     allMatchingServices.sort((a, b) => (a.rate || 0) - (b.rate || 0));
                     const cheapest = allMatchingServices[0];
+                    const cheapestRate = Number(cheapest.rate ?? 0).toFixed(2);
 
                     allMatchingServices.slice(1).forEach(s => {
                         s.hiddenBy = 'rule';
-                        s.hiddenReason = `Hidden - more expensive than ${cheapest.carrier} ${cheapest.service} ($${cheapest.rate.toFixed(2)})${rule.description ? ` (${rule.description})` : ''}`;
+                        s.hiddenReason = `Hidden - more expensive than ${cheapest.carrier} ${cheapest.service} ($${cheapestRate})${rule.description ? ` (${rule.description})` : ''}`;
                     });
                 }
             }
