@@ -1,0 +1,49 @@
+@model ConfigurationModel
+
+<div class="card card-default no-margin">
+    <div class="card-header">
+        @T("Plugins.Shipping.EasyPost.Configuration.AddressVerification")
+    </div>
+    <div class="card-body">
+        <p>
+            EasyPost offers several verification tools that can be used to detect deliverability issues, correct minor errors in spelling/formatting, and determine if an address is residential or not (which has a significant effect on shipment rating for many carriers).<br />
+            The address verification service supports 240+ countries. See the <a href="https://www.easypost.com/docs/address-verification-by-country" target="_blank">full listing</a> to see which verification level is available for each country. <br />
+            International AVS is also a premium, stand-alone service that must be subscribed to in order to be used. If you'd like to learn more about International AVS, <a href="https://www.easypost.com/talk-to-easypost" target="_blank">contact representatives</a> for more information.
+        </p>
+        <div class="form-group row">
+            <div class="col-md-3">
+                <nop-label asp-for="AddressVerification" />
+            </div>
+            <div class="col-md-9">
+                <nop-editor asp-for="AddressVerification" />
+                <span asp-validation-for="AddressVerification"></span>
+            </div>
+        </div>
+        <nop-nested-setting asp-for="AddressVerification" id="strict-address-verification" disable-auto-generation="true">
+            <div class="form-group row">
+                <div class="col-md-3">
+                    <nop-label asp-for="StrictAddressVerification" />
+                </div>
+                <div class="col-md-9">
+                    <nop-editor asp-for="StrictAddressVerification" />
+                    <span asp-validation-for="StrictAddressVerification"></span>
+                </div>
+            </div>
+        </nop-nested-setting>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        $("#@Html.IdFor(model => model.AddressVerification)").click(toggleAddressVerification);
+        toggleAddressVerification();
+    });
+
+    function toggleAddressVerification() {
+        if ($('#@Html.IdFor(model => model.AddressVerification)').is(':checked')) {
+            $('#strict-address-verification').showElement();
+        } else {
+            $('#strict-address-verification').hideElement();
+        }
+    }
+</script>

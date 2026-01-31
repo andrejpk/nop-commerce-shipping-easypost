@@ -1,0 +1,21 @@
+@model ConfigurationModel
+
+<div class="card card-default no-margin" id="service-configuration">
+    <div class="card-header">
+        @T("Plugins.Shipping.EasyPost.Configuration.ServiceConfiguration")
+    </div>
+    <div class="card-body">
+        <p>
+            Configure which shipping services to display to customers and create rules to hide certain services conditionally.
+            Use the test scenario below to discover available services and preview how rules affect the displayed options.
+        </p>
+
+        <partial name="~/Plugins/Shipping.EasyPost/Views/Configuration/ServiceConfiguration/_TestScenario.cshtml" model="Model" />
+        <partial name="~/Plugins/Shipping.EasyPost/Views/Configuration/ServiceConfiguration/_ServicesPanel.cshtml" model="Model" />
+        <partial name="~/Plugins/Shipping.EasyPost/Views/Configuration/ServiceConfiguration/_RulesPanel.cshtml" model="Model" />
+
+        <!-- Hidden fields to store configuration -->
+        <input type="hidden" id="discovered-services-json" name="discoveredServicesJson" />
+        <input type="hidden" id="service-rules-json" name="serviceRulesJson" />
+    </div>
+</div>

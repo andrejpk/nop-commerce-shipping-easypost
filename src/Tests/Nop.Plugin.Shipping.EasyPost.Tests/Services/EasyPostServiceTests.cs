@@ -9,6 +9,7 @@ using Nop.Plugin.Shipping.EasyPost.Domain.Batch;
 using Nop.Plugin.Shipping.EasyPost.Services;
 using Nop.Services.Catalog;
 using Nop.Services.Common;
+using Nop.Services.Configuration;
 using Nop.Services.Customers;
 using Nop.Services.Directory;
 using Nop.Services.Localization;
@@ -35,6 +36,7 @@ public class EasyPostServiceTests
     private Mock<ILocalizationService> _localizationService;
     private Mock<ILogger> _logger;
     private Mock<IMeasureService> _measureService;
+    private Mock<ISettingService> _settingService;
     private Mock<INotificationService> _notificationService;
     private Mock<IOrderService> _orderService;
     private Mock<IProductService> _productService;
@@ -66,6 +68,7 @@ public class EasyPostServiceTests
         _localizationService = new Mock<ILocalizationService>();
         _logger = new Mock<ILogger>();
         _measureService = new Mock<IMeasureService>();
+        _settingService = new Mock<ISettingService>();
         _notificationService = new Mock<INotificationService>();
         _orderService = new Mock<IOrderService>();
         _productService = new Mock<IProductService>();
@@ -98,6 +101,7 @@ public class EasyPostServiceTests
             _localizationService.Object,
             _logger.Object,
             _measureService.Object,
+            _settingService.Object,
             _notificationService.Object,
             _orderService.Object,
             _productService.Object,
