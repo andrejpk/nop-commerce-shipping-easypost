@@ -43,6 +43,7 @@ public class EasyPostController : BasePluginController
         private readonly EasyPostModelFactory _easyPostModelFactory;
         private readonly EasyPostService _easyPostService;
         private readonly EasyPostSettings _easyPostSettings;
+        private readonly ICountryService _countryService;
         private readonly ICurrencyService _currencyService;
         private readonly IDateTimeHelper _dateTimeHelper;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -63,6 +64,7 @@ public class EasyPostController : BasePluginController
         public EasyPostController(EasyPostModelFactory easyPostModelFactory,
             EasyPostService easyPostService,
             EasyPostSettings easyPostSettings,
+            ICountryService countryService,
             ICurrencyService currencyService,
             IDateTimeHelper dateTimeHelper,
             IHttpClientFactory httpClientFactory,
@@ -79,6 +81,7 @@ public class EasyPostController : BasePluginController
             _easyPostModelFactory = easyPostModelFactory;
             _easyPostService = easyPostService;
             _easyPostSettings = easyPostSettings;
+            _countryService = countryService;
             _currencyService = currencyService;
             _dateTimeHelper = dateTimeHelper;
             _httpClientFactory = httpClientFactory;
@@ -118,7 +121,7 @@ public class EasyPostController : BasePluginController
             };
 
             // Populate country dropdown
-            var countries = await _nopEngine.Resolve<Nop.Services.Directory.ICountryService>().GetAllCountriesAsync(showHidden: true);
+            var countries = await _countryService.GetAllCountriesAsync(showHidden: true);
             model.AvailableCountries = countries.Select(c => new SelectListItem
             {
                 Text = c.Name,

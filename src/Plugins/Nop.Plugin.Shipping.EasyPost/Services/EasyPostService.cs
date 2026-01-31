@@ -1941,7 +1941,10 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                 var warehouse = (await _warehouseService.GetAllWarehousesAsync()).FirstOrDefault()
                     ?? throw new NopException("No warehouse configured");
 
-                var fromAddress = await PrepareEasyPostAddressAsync(warehouse.Address);
+                var warehouseAddress = await _addressService.GetAddressByIdAsync(warehouse.AddressId)
+                    ?? throw new NopException("Warehouse address not found");
+
+                var fromAddress = await PrepareEasyPostAddressAsync(warehouseAddress);
                 var toAddress = await PrepareEasyPostAddressAsync(destinationAddress);
 
                 // Standard small parcel for testing
@@ -1964,17 +1967,14 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
                     throw new NopException("No rates returned from test shipment");
 
                 // Convert rates to carrier service configs
-                var storeCurrency = await _currencyService.GetCurrencyByIdAsync(_currencySettings.PrimaryStoreCurrencyId)
-                    ?? throw new NopException("Primary store currency is not set");
-
-                var services = await shipment.Rates.SelectAwait(async (rate, index) => new Domain.Configuration.CarrierServiceConfig
+                var services = shipment.Rates.Select((rate, index) => new Domain.Configuration.CarrierServiceConfig
                 {
                     Carrier = rate.Carrier,
                     Service = rate.Service,
                     DisplayName = $"{rate.Carrier} {rate.Service}",
                     Visible = true,
                     DisplayOrder = index
-                }).ToListAsync();
+                }).ToList();
 
                 return services;
             });
