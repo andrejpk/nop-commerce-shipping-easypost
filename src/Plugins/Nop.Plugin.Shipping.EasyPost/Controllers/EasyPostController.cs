@@ -274,16 +274,21 @@ public class EasyPostController : BasePluginController
                 }
             }
 
-            // Save simple settings
-            await _settingService.SaveSettingAsync(_easyPostSettings);
-
-            // Manually serialize and save complex collections as JSON strings
-            // nopCommerce doesn't auto-serialize collections, so we need to do it explicitly
+            // Save collections separately as JSON strings before saving main settings
+            // nopCommerce doesn't auto-serialize collections, so we handle them manually
             var servicesJsonToSave = Newtonsoft.Json.JsonConvert.SerializeObject(_easyPostSettings.DiscoveredServices ?? new());
             var rulesJsonToSave = Newtonsoft.Json.JsonConvert.SerializeObject(_easyPostSettings.ServiceDisplayRules ?? new());
 
             await _settingService.SetSettingAsync("EasyPostSettings.DiscoveredServices", servicesJsonToSave);
             await _settingService.SetSettingAsync("EasyPostSettings.ServiceDisplayRules", rulesJsonToSave);
+
+            // Clear collection properties to avoid confusion when saving main settings
+            // (they're already saved separately above)
+            _easyPostSettings.DiscoveredServices = new();
+            _easyPostSettings.ServiceDisplayRules = new();
+
+            // Save remaining simple settings
+            await _settingService.SaveSettingAsync(_easyPostSettings);
 
             //reset client configuration
             EasyPostService.ResetClientConfiguration();
@@ -326,8 +331,27 @@ public class EasyPostController : BasePluginController
                 if (country == null)
                     return Json(new { success = false, message = "Please select a country" });
 
-                // Parse weight (default to 16oz = 1lb)
-                var weightInOunces = double.TryParse(weight, out var w) ? w : 16;
+                // Parse and validate weight (default to 16oz = 1lb)
+                double weightInOunces;
+                if (!double.TryParse(weight, out var parsedWeight))
+                {
+                    weightInOunces = 16; // Default to 1 pound
+                }
+                else
+                {
+                    // Validate weight is within reasonable bounds (0.1 to 150 pounds = 1.6 to 2400 ounces)
+                    const double minWeightOunces = 0.1 * 16;
+                    const double maxWeightOunces = 150 * 16;
+
+                    if (parsedWeight < minWeightOunces || parsedWeight > maxWeightOunces)
+                        return Json(new
+                        {
+                            success = false,
+                            message = "Weight must be between 0.1 and 150 pounds."
+                        });
+
+                    weightInOunces = parsedWeight;
+                }
 
                 // Create a temporary address for testing
                 // We'll store the state abbreviation in Address2 as a workaround since we don't have StateProvinceId

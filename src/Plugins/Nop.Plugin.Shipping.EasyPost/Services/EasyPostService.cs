@@ -2218,6 +2218,10 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
             if (string.IsNullOrWhiteSpace(pattern))
                 return false;
 
+            // Null check for rate properties
+            if (string.IsNullOrEmpty(rate?.Carrier) || string.IsNullOrEmpty(rate?.Service))
+                return false;
+
             var parts = pattern.Split(':', 2);
             if (parts.Length != 2)
                 return false;
