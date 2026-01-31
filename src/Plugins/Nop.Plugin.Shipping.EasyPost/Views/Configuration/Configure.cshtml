@@ -278,8 +278,8 @@
 (function() {
     // State management
     let rawServices = [];
-    let discoveredServices = @Html.Raw(Json.Serialize(Model.DiscoveredServices ?? new List<Domain.Configuration.CarrierServiceConfig>()));
-    let serviceRules = @Html.Raw(Json.Serialize(Model.ServiceDisplayRules ?? new List<Domain.Configuration.ServiceDisplayRule>()));
+    let discoveredServices = @Html.Raw(Json.Serialize(Model.DiscoveredServices));
+    let serviceRules = @Html.Raw(Json.Serialize(Model.ServiceDisplayRules));
     let nextRulePriority = serviceRules.length;
 
     // Load test scenario from sessionStorage
