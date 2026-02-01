@@ -12,7 +12,7 @@ var nopCommerceRoot = Environment.GetEnvironmentVariable("NopCommerceRoot")
 var pluginOutputPath = Path.Combine(nopCommerceRoot, "Presentation", "Nop.Web", "Plugins", pluginName);
 var version = Environment.GetEnvironmentVariable("VERSION") ?? "0.0.0-dev";
 var packageRootPath = "package";
-var packageOutputPath = Path.Combine(packageRootPath, pluginSystemName);
+var packageOutputPath = Path.Combine(packageRootPath, pluginName);
 var zipFileName = $"{pluginSystemName}_v{version}.zip";
 
 Console.WriteLine("📦 EasyPost Plugin Packager");
@@ -83,9 +83,9 @@ var uploadedItems = $$"""
   {
     "Type": "Plugin",
     "SupportedVersion": "4.90",
-    "DirectoryPath": "{{pluginSystemName}}/",
+    "DirectoryPath": "{{pluginName}}/",
     "SystemName": "{{pluginName}}",
-    "SourceDirectoryPath": "{{pluginSystemName}}/"
+    "SourceDirectoryPath": "{{pluginName}}/"
   }
 ]
 """;
