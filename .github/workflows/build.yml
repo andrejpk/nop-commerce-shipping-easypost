@@ -40,21 +40,12 @@ jobs:
     - name: Run tests
       run: dotnet test plugin/src/Tests/Nop.Plugin.Shipping.EasyPost.Tests/Nop.Plugin.Shipping.EasyPost.Tests.csproj --configuration Release --verbosity normal
 
-    - name: Install dotnet-script
-      run: dotnet tool install -g dotnet-script
-
-    - name: Package plugin
-      run: dotnet script build.cs
-      working-directory: plugin
-      env:
-        NopCommerceRoot: ${{ github.workspace }}/nopCommerce/src
-
-    - name: Upload plugin package
+    - name: Upload build output
       uses: actions/upload-artifact@v4
       with:
-        name: Nop.Plugin.Shipping.EasyPost
-        path: plugin/Nop.Plugin.Shipping.EasyPost_v*.zip
-        retention-days: 30
+        name: build-output
+        path: nopCommerce/src/Presentation/Nop.Web/Plugins/Shipping.EasyPost/
+        retention-days: 1
 
   release:
     needs: build
@@ -70,10 +61,19 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Download build artifact
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Download build output
       uses: actions/download-artifact@v4
       with:
-        name: Nop.Plugin.Shipping.EasyPost
+        name: build-output
+        path: nopCommerce/src/Presentation/Nop.Web/Plugins/Shipping.EasyPost/
+
+    - name: Install dotnet-script
+      run: dotnet tool install -g dotnet-script
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -86,4 +86,5 @@ jobs:
     - name: Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NopCommerceRoot: ${{ github.workspace }}/nopCommerce/src
       run: npx semantic-release
