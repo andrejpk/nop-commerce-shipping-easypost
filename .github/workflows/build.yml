@@ -86,10 +86,10 @@ jobs:
       run: dotnet restore nopCommerce/src/NopCommerce.sln
 
     - name: Restore plugin dependencies
-      run: dotnet restore src/Plugins/Nop.Plugin.Shipping.EasyPost/Nop.Plugin.Shipping.EasyPost.csproj
+      run: dotnet restore src/Plugins/Nop.Plugin.Shipping.EasyPost/Nop.Plugin.Shipping.EasyPost.csproj /p:NopCommerceRoot=${{ github.workspace }}/nopCommerce/src
 
     - name: Build plugin
-      run: dotnet build src/Plugins/Nop.Plugin.Shipping.EasyPost/Nop.Plugin.Shipping.EasyPost.csproj --configuration Release --no-restore
+      run: dotnet build src/Plugins/Nop.Plugin.Shipping.EasyPost/Nop.Plugin.Shipping.EasyPost.csproj --configuration Release --no-restore /p:NopCommerceRoot=${{ github.workspace }}/nopCommerce/src
 
     - name: Install dotnet-script
       run: dotnet tool install -g dotnet-script
