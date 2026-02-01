@@ -2,5 +2,36 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "groupName": ".NET testing packages",
+      "matchPackagePatterns": [
+        "^NUnit",
+        "^Moq$",
+        "^FluentAssertions$",
+        "^coverlet",
+        "^Microsoft\\.NET\\.Test\\.Sdk$"
+      ],
+      "matchManagers": ["nuget"],
+      "schedule": ["before 6am on Monday"]
+    },
+    {
+      "groupName": "semantic-release packages",
+      "matchPackagePatterns": [
+        "^semantic-release$",
+        "^@semantic-release/"
+      ],
+      "matchManagers": ["npm"],
+      "schedule": ["before 6am on Monday"]
+    },
+    {
+      "groupName": ".NET build and tooling packages",
+      "matchPackagePatterns": [
+        "^Microsoft\\.CodeAnalysis",
+        "^Microsoft\\.Build"
+      ],
+      "matchManagers": ["nuget"]
+    }
   ]
 }
