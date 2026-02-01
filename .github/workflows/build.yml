@@ -12,12 +12,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         path: plugin
 
     - name: Checkout nopCommerce
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         repository: nopSolutions/nopCommerce
         ref: master
@@ -57,7 +57,7 @@ jobs:
       pull-requests: write
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
