@@ -54,6 +54,15 @@ if (Directory.Exists(viewsSource))
     CopyDirectory(viewsSource, viewsTarget);
 }
 
+// Copy wwwroot (JavaScript, CSS, images, etc.)
+Console.WriteLine("   Copying wwwroot...");
+var wwwrootSource = Path.Combine(pluginProjectPath, "wwwroot");
+var wwwrootTarget = Path.Combine(packageOutputPath, "wwwroot");
+if (Directory.Exists(wwwrootSource))
+{
+    CopyDirectory(wwwrootSource, wwwrootTarget);
+}
+
 // Copy metadata files
 Console.WriteLine("   Copying metadata...");
 var pluginJsonSource = Path.Combine(pluginProjectPath, "plugin.json");
