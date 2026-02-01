@@ -72,6 +72,11 @@
         /// </summary>
         public static string WebhookRouteName => "Plugin.Shipping.EasyPost.Webhook";
 
+        /// <summary>
+        /// Gets the buy batch route name
+        /// </summary>
+        public static string BuyBatchRouteName => "Plugin.Shipping.EasyPost.BuyBatch";
+
         #endregion
 
         #region Attributes
