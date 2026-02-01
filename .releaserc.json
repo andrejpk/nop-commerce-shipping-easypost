@@ -6,7 +6,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "VERSION=${nextRelease.version} dotnet script build.cs"
+        "prepareCmd": "mv Nop.Plugin.Shipping.EasyPost_v*.zip Nop.Plugin.Shipping.EasyPost_v${nextRelease.version}.zip"
       }
     ],
     [
@@ -14,7 +14,7 @@
       {
         "assets": [
           {
-            "path": "Nop.Plugin.Shipping.EasyPost_v*.zip",
+            "path": "Nop.Plugin.Shipping.EasyPost_v${nextRelease.version}.zip",
             "label": "EasyPost Plugin v${nextRelease.version}"
           }
         ]
