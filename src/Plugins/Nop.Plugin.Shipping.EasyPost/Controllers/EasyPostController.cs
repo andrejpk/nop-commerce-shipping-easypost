@@ -778,6 +778,29 @@ public class EasyPostController : BasePluginController
         }
 
         [HttpPost]
+        public async Task<IActionResult> BatchBuy(int id)
+        {
+            if (!await _permissionService.AuthorizeAsync(StandardPermission.Orders.ORDERS_VIEW))
+                return AccessDeniedView();
+
+            var batch = await _easyPostService.GetBatchByIdAsync(id);
+            if (batch is null)
+                return RedirectToAction("BatchList");
+
+            var (_, error) = await _easyPostService.PurchaseBatchAsync(batch);
+            if (!string.IsNullOrEmpty(error))
+            {
+                var locale = await _localizationService.GetResourceAsync("Plugins.Shipping.EasyPost.Error");
+                _notificationService.ErrorNotification(string.Format(locale, error, Url.Action("List", "Log")), false);
+                return RedirectToAction("BatchEdit", new { id = batch.Id });
+            }
+
+            _notificationService.SuccessNotification(await _localizationService.GetResourceAsync("Plugins.Shipping.EasyPost.Success"));
+
+            return RedirectToAction("BatchEdit", new { id = batch.Id });
+        }
+
+        [HttpPost]
         public async Task<IActionResult> BatchShipmentList(BatchShipmentSearchModel searchModel)
         {
             if (!await _permissionService.AuthorizeAsync(StandardPermission.Orders.ORDERS_VIEW))

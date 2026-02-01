@@ -192,6 +192,7 @@ public class EasyPostProvider : BasePlugin, IShippingRateComputationMethod, IWid
             ["Plugins.Shipping.EasyPost.Batch.GenerateLabel.Pdf"] = "PDF",
             ["Plugins.Shipping.EasyPost.Batch.GenerateLabel.Zpl"] = "ZPL",
             ["Plugins.Shipping.EasyPost.Batch.GenerateManifest"] = "Generate manifest",
+            ["Plugins.Shipping.EasyPost.Batch.Purchase"] = "Purchase Batch",
             ["Plugins.Shipping.EasyPost.Batch.Search.Status"] = "Status",
             ["Plugins.Shipping.EasyPost.Batch.Search.Status.Hint"] = "Search by the status.",
             ["Plugins.Shipping.EasyPost.Batch.Shipments"] = "Associated shipments",

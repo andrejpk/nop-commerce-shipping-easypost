@@ -34,6 +34,13 @@
                     @T("Plugins.Shipping.EasyPost.Batch.DownloadManifest")
                 </button>
             }
+            @if (Model.BatchStatus == BatchStatus.Created)
+            {
+                <button type="submit" asp-action="BatchBuy" asp-route-id="@Model.Id" class="btn btn-primary">
+                    <i class="fa fa-shopping-cart"></i>
+                    @T("Plugins.Shipping.EasyPost.Batch.Purchase")
+                </button>
+            }
             @if (Model.BatchStatus == BatchStatus.Purchased)
             {
                 <div class="btn-group">

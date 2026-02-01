@@ -1773,6 +1773,45 @@ namespace Nop.Plugin.Shipping.EasyPost.Services
         }
 
         /// <summary>
+        /// Purchase a batch (required before generating labels or manifests)
+        /// </summary>
+        /// <param name="batchEntry">Batch entry</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the function result; error message if exists
+        /// </returns>
+        public async Task<(bool Result, string Error)> PurchaseBatchAsync(EasyPostBatch batchEntry)
+        {
+            return await HandleFunctionAsync(async () =>
+            {
+                if (batchEntry is null)
+                    throw new ArgumentNullException(nameof(batchEntry));
+
+                if (!IsConfigured())
+                    throw new NopException("Plugin not configured");
+
+                if ((BatchStatus)batchEntry.StatusId == BatchStatus.Unknown ||
+                    (BatchStatus)batchEntry.StatusId == BatchStatus.Creating ||
+                    (BatchStatus)batchEntry.StatusId == BatchStatus.CreationFailed)
+                {
+                    throw new NopException("Batch is not yet created");
+                }
+
+                if ((BatchStatus)batchEntry.StatusId == BatchStatus.Purchased)
+                    throw new NopException("Batch is already purchased");
+
+                var batch = await _client.Batch.Buy(batchEntry.BatchId)
+                    ?? throw new NopException("No response from the service");
+
+                batchEntry.StatusId = (int)GetBatchStatus(batch);
+                batchEntry.UpdatedOnUtc = DateTime.UtcNow;
+                await UpdateBatchAsync(batchEntry);
+
+                return true;
+            });
+        }
+
+        /// <summary>
         /// Gets batch shipments
         /// </summary>
         /// <param name="batchEntry">Batch entry</param>
