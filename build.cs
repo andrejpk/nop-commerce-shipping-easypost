@@ -5,12 +5,15 @@ using System.IO.Compression;
 
 // Configuration
 var pluginName = "Shipping.EasyPost";
-var pluginProjectPath = Path.Combine("src", "Plugins", "Nop.Plugin.Shipping.EasyPost");
+var pluginSystemName = "Nop.Plugin.Shipping.EasyPost";
+var pluginProjectPath = Path.Combine("src", "Plugins", pluginSystemName);
 var nopCommerceRoot = Environment.GetEnvironmentVariable("NopCommerceRoot")
     ?? Path.Combine("..", "nopCommerce", "src");
 var pluginOutputPath = Path.Combine(nopCommerceRoot, "Presentation", "Nop.Web", "Plugins", pluginName);
-var packageOutputPath = Path.Combine("package", pluginName);
-var zipFileName = "Nop.Plugin.Shipping.EasyPost.zip";
+var version = Environment.GetEnvironmentVariable("VERSION") ?? "0.0.0-dev";
+var packageRootPath = "package";
+var packageOutputPath = Path.Combine(packageRootPath, pluginSystemName);
+var zipFileName = $"{pluginSystemName}_v{version}.zip";
 
 Console.WriteLine("📦 EasyPost Plugin Packager");
 Console.WriteLine("===========================\n");
@@ -25,9 +28,9 @@ if (!Directory.Exists(pluginOutputPath))
 
 // Clean and create package directory
 Console.WriteLine("📦 Creating package...");
-if (Directory.Exists(packageOutputPath))
+if (Directory.Exists(packageRootPath))
 {
-    Directory.Delete(packageOutputPath, true);
+    Directory.Delete(packageRootPath, true);
 }
 Directory.CreateDirectory(packageOutputPath);
 
@@ -53,8 +56,31 @@ if (Directory.Exists(viewsSource))
 
 // Copy metadata files
 Console.WriteLine("   Copying metadata...");
-File.Copy(Path.Combine(pluginProjectPath, "plugin.json"), Path.Combine(packageOutputPath, "plugin.json"), true);
+var pluginJsonSource = Path.Combine(pluginProjectPath, "plugin.json");
+var pluginJsonTarget = Path.Combine(packageOutputPath, "plugin.json");
+var pluginJsonContent = File.ReadAllText(pluginJsonSource);
+pluginJsonContent = System.Text.RegularExpressions.Regex.Replace(
+    pluginJsonContent,
+    @"""Version""\s*:\s*""0\.0\.0""",
+    $@"""Version"": ""{version}""");
+File.WriteAllText(pluginJsonTarget, pluginJsonContent);
 CopyIfExists(Path.Combine(pluginProjectPath, "logo.png"), packageOutputPath);
+
+// Create uploadedItems.json
+Console.WriteLine("   Creating uploadedItems.json...");
+var uploadedItemsPath = Path.Combine(packageRootPath, "uploadedItems.json");
+var uploadedItems = $$"""
+[
+  {
+    "Type": "Plugin",
+    "SupportedVersion": "4.90",
+    "DirectoryPath": "{{pluginSystemName}}/",
+    "SystemName": "{{pluginName}}",
+    "SourceDirectoryPath": "{{pluginSystemName}}/"
+  }
+]
+""";
+File.WriteAllText(uploadedItemsPath, uploadedItems);
 
 // Create ZIP
 Console.WriteLine("\n📦 Creating ZIP file...");
@@ -69,23 +95,12 @@ var zipInfo = new FileInfo(zipFileName);
 Console.WriteLine($"✅ Package created successfully!");
 Console.WriteLine($"   File: {zipFileName}");
 Console.WriteLine($"   Size: {zipInfo.Length:N0} bytes");
-
-// Display version from plugin.json
-try
-{
-    var pluginJson = File.ReadAllText(Path.Combine(pluginProjectPath, "plugin.json"));
-    var versionMatch = System.Text.RegularExpressions.Regex.Match(pluginJson, @"""Version""\s*:\s*""([^""]+)""");
-    if (versionMatch.Success)
-    {
-        Console.WriteLine($"   Version: {versionMatch.Groups[1].Value}");
-    }
-}
-catch { }
+Console.WriteLine($"   Version: {version}");
 
 Console.WriteLine("\nTo install:");
 Console.WriteLine("  1. Go to Admin → Configuration → Local plugins");
 Console.WriteLine("  2. Click 'Upload plugin or theme'");
-Console.WriteLine("  3. Select Nop.Plugin.Shipping.EasyPost.zip");
+Console.WriteLine($"  3. Select {zipFileName}");
 Console.WriteLine("  4. Upload and restart the application");
 
 // Helper functions

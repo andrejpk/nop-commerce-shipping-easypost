@@ -4,11 +4,17 @@
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
     [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "VERSION=${nextRelease.version} dotnet script build.cs"
+      }
+    ],
+    [
       "@semantic-release/github",
       {
         "assets": [
           {
-            "path": "Nop.Plugin.Shipping.EasyPost.zip",
+            "path": "Nop.Plugin.Shipping.EasyPost_v*.zip",
             "label": "EasyPost Plugin v${nextRelease.version}"
           }
         ]

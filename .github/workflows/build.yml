@@ -53,7 +53,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: Nop.Plugin.Shipping.EasyPost
-        path: plugin/Nop.Plugin.Shipping.EasyPost.zip
+        path: plugin/Nop.Plugin.Shipping.EasyPost_v*.zip
         retention-days: 30
 
   release:
@@ -70,6 +70,30 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Checkout nopCommerce
+      uses: actions/checkout@v4
+      with:
+        repository: nopSolutions/nopCommerce
+        ref: master
+        path: nopCommerce
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Restore nopCommerce dependencies
+      run: dotnet restore nopCommerce/src/NopCommerce.sln
+
+    - name: Restore plugin dependencies
+      run: dotnet restore src/Plugins/Nop.Plugin.Shipping.EasyPost/Nop.Plugin.Shipping.EasyPost.csproj
+
+    - name: Build plugin
+      run: dotnet build src/Plugins/Nop.Plugin.Shipping.EasyPost/Nop.Plugin.Shipping.EasyPost.csproj --configuration Release --no-restore
+
+    - name: Install dotnet-script
+      run: dotnet tool install -g dotnet-script
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
@@ -78,12 +102,8 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Download plugin package
-      uses: actions/download-artifact@v4
-      with:
-        name: Nop.Plugin.Shipping.EasyPost
-
     - name: Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NopCommerceRoot: ${{ github.workspace }}/nopCommerce/src
       run: npx semantic-release
