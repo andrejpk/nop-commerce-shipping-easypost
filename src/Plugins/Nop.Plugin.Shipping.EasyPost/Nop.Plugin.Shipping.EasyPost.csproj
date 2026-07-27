@@ -127,7 +127,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="EasyPost-Official" Version="7.4.0" />
+    <PackageReference Include="EasyPost-Official" Version="7.10.0" />
   </ItemGroup>
 
   <!-- This target execute after "Build" target -->
